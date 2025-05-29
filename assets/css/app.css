@@ -1,0 +1,39 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* This file is for your main application CSS */
+.app-container {
+  display: grid;
+  grid-template-areas: "header header" "sidebar main";
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+
+#header {
+  grid-area: header;
+}
+
+#sidebar {
+  z-index: 1;
+  grid-area: sidebar;
+  #sidebar-panel[data-open="true"] {
+    .sidebar-items {
+      @apply items-start;
+    }
+    .sidebar-item-container {
+      @apply w-full;
+    }
+  }
+  #sidebar-panel[data-open="false"] {
+    .sidebar-items {
+      @apply items-center;
+    }
+  }
+}
+
+#main {
+  grid-area: main;
+  position: relative;
+}
