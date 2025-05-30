@@ -1,6 +1,6 @@
 <script>
   import { Presence, Socket } from 'phoenix';
-  import { liveViewSockets } from '../stores/liveViewSockets';
+  import { translate_room_name } from '../lib/utils';
   let rooms = $state({});
   let socket;
   let channel;
@@ -31,15 +31,7 @@
         channel.on('room_changed', (payload) => {
           console.log('room_created', payload);
           rooms = payload.rooms;
-        })
-        // channel.on('user_joined', (payload) => {
-        //   console.log('user_joined_room', payload);
-        //   rooms = payload.rooms;
-        // })
-        // channel.on('user_left', (payload) => {
-        //   console.log('user_left_room', payload);
-        //   rooms = payload.rooms;
-        // })
+        });
       })
       .receive('error', (resp) => {
         console.log('Unable to join', resp);
@@ -49,22 +41,36 @@
     });
   }
   async function create_and_join_room() {
-    channel.push('create_room', { height: 20, width: 20, winning: 5 })
-    .receive('ok', (payload) => {
-      window.location.href = '/game/' + payload.room;      
-    })
-    .receive('error', (err) => console.log('phoenix errored', err));
+    channel
+      .push('create_room', { height: 20, width: 20, winning: 5 })
+      .receive('ok', (payload) => {
+        window.location.href = '/game/' + payload.room;
+      })
+      .receive('error', (err) => console.log('phoenix errored', err));
   }
   function join_room(room) {
     window.location.href = '/game/' + room;
   }
 </script>
 
-<div class="grid gap-2">
-  {#each Object.entries(rooms) as [room, data]}
-    {#if data.count <= 1}
-      <button onclick={() => join_room(room)}>Join {room} [{data.height}x{data.width}]</button>
-    {/if}
-  {/each}
-  <button onclick={create_and_join_room}>Create Room!</button>
+<div class="grid w-full gap-4">
+  <button
+    class="mx-auto w-fit rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+    onclick={create_and_join_room}>Create Room!</button>
+  <div class="rooms-list grid grid-cols-2 items-center justify-center gap-2">
+    {#each Object.entries(rooms) as [room, data]}
+      {#if data.count <= 1}
+        <p>{translate_room_name(room)} [{data.height}x{data.width}]</p>
+        <button
+          class="w-fit rounded bg-teal-500 px-4 py-2 font-bold text-white hover:bg-teal-700"
+          onclick={() => join_room(room)}>Join!</button>
+      {/if}
+    {/each}
+  </div>
 </div>
+
+<style>
+  .rooms-list {
+    grid-template-columns: 1fr auto;
+  }
+</style>

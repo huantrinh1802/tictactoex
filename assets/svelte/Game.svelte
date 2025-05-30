@@ -2,6 +2,7 @@
   import { Presence, Socket } from 'phoenix';
   import { onMount } from 'svelte';
   import { liveViewSockets } from '../stores/liveViewSockets';
+  import { translate_room_name } from '../lib/utils';
   let { room_name } = $props();
   let channel;
   let presence;
@@ -107,11 +108,6 @@
         }
       });
     });
-    // generateTicTacToeBoard(20, 20);
-    // channel.push('start_board', { board: board });
-  }
-  function ping(room) {
-    channel.push('ping', {});
   }
   function play(x, y) {
     channel
@@ -131,9 +127,6 @@
   }
   function isWinningCell(col, row) {
     return winningCells.some(([winCol, winRow]) => winCol === col && winRow === row);
-  }
-  function translate_room_name(room_name) {
-    return room_name.split('_').reduce((acc, cur) => acc + ' ' + cur[0].toUpperCase() + cur.slice(1), '');
   }
 </script>
 
