@@ -9,15 +9,13 @@
   $effect(() => {
     let token = sessionStorage.getItem('token');
     if (!token) {
-      token = self.crypto.randomUUID();
+      // token = self.crypto.randomUUID();
+      token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
       sessionStorage.setItem('token', token);
     }
     socket = new Socket('/socket', { params: { token: token } });
     socket.connect();
-    if ($liveViewSockets) {
-      console.log('Connected to live view socket');
-      join();
-    }
+    join();
   });
   function join() {
     channel = socket.channel('lobby', { token: sessionStorage.getItem('token') });

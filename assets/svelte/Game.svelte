@@ -35,7 +35,8 @@
   onMount(() => {
     let token = sessionStorage.getItem('token');
     if (!token) {
-      token = self.crypto.randomUUID();
+      // token = self.crypto.randomUUID();
+      token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
       sessionStorage.setItem('token', token);
     }
     socket = new Socket('/socket', { params: { token: token } });
@@ -67,7 +68,11 @@
           // check if need to scroll
           const element = document.getElementById(`${payload.x}-${payload.y}`);
           const rect = element.getBoundingClientRect();
-          if (rect.top <= 0 || rect.bottom >= window.innerHeight) {
+          const isVerticallyOutOfView = rect.top <= 0 || rect.bottom >= window.innerHeight;
+
+          // Check horizontal visibility
+          const isHorizontallyOutOfView = rect.left < 0 || rect.right > window.innerWidth;
+          if (isVerticallyOutOfView || isHorizontallyOutOfView) {
             document.getElementById(`${payload.x}-${payload.y}`).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
           }
         });
@@ -133,13 +138,15 @@
 </script>
 
 <!-- <ServiceWorker bind:serviceWorkerVersion></ServiceWorker> -->
-<div class="flex gap-2 justify-between items-center py-2">
+<div class="flex items-center justify-between gap-2 py-2">
   <h2 class="text-2xl font-semibold">Room: {translate_room_name(room_name)}</h2>
-  <button class="rounded-lg bg-red-600 px-4 py-2 text-white" onclick={() => window.location.href = '/lobby'}>Leave</button>
+  <button
+    class="rounded-lg bg-red-600 px-4 py-2 text-white"
+    onclick={() => (window.location.href = '/lobby')}>Leave</button>
 </div>
 {#if board.length > 0 && player && !waiting}
   <div
-    class="banner sticky inset-x-0 top-2 z-10 flex w-full items-center justify-between rounded-lg p-4"
+    class="banner sticky inset-x-0 top-2 flex w-full items-center justify-between rounded-lg p-4"
     data-winner={winner && player == winner}>
     {#if winner}
       <div class="flex w-full justify-center">
@@ -151,7 +158,7 @@
         </p>
       </div>
     {:else}
-      <div class="flex w-full items-center justify-between">
+      <div class="flex w-full items-center justify-between gap-4">
         <p
           class="rounded-lg bg-amber-600 px-4 py-2 text-white"
           class:in-turn={turn == player}>
@@ -167,7 +174,7 @@
       </div>
     {/if}
   </div>
-  <div class="relative mt-2 rounded-lg bg-black p-2">
+  <div class="board relative mt-2 rounded-lg bg-black p-2">
     <!-- Shadow left -->
     {#if showLeft}
       <div class="pointer-events-none absolute top-0 left-0 z-10 h-full w-6 bg-gradient-to-r from-black/20 to-transparent"></div>
@@ -188,7 +195,7 @@
             <button
               disabled={turn != player || cell != '' || winningCells.length > 0}
               id="{col_index}-{row_index}"
-              class="tictactoe-cell aspect-square min-h-[12px] w-full cursor-pointer rounded-lg text-white"
+              class="tictactoe-cell aspect-square min-h-[32px] w-full cursor-pointer rounded-md text-white"
               aria-label="{col_index}, {row_index}"
               data-cell={cell}
               data-winning={isWinningCell(col_index, row_index) ? 'true' : 'false'}
@@ -261,6 +268,7 @@
   }
   .banner {
     background-color: gray; /* Tailwind indigo-600 */
+    z-index: 1;
     &[data-winner='true'] {
       background-color: #4ade80; /* Tailwind green-400 */
     }
@@ -268,5 +276,7 @@
     &[data-winner='false'] {
       background-color: #dc2626; /* Tailwind red-600 */
     }
+  }
+  .board {
   }
 </style>

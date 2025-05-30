@@ -2,6 +2,22 @@
   <header id="header" class="px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
       <div class="flex items-center gap-4">
+      <button
+        id="toggle-btn"
+        class="p-2 hover:bg-gray-700 rounded md:hidden"
+        phx-click={
+          JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")
+        }
+      >
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
         <a href="/" class="h-[2rem] w-[2rem]">
           {Phoenix.HTML.raw(File.read!("priv/static/icons/icons.svg"))}
         </a>
@@ -11,21 +27,16 @@
       </div>
     </div>
   </header>
-  <aside id="sidebar" class="flex w-fit">
-    <div
-      id="sidebar-panel"
+  <aside       id="sidebar-panel"
       data-open="false"
-      class="bg-gray-800 text-white w-16 transition-all duration-300 flex flex-col items-center space-y-4 py-6 overflow-hidden"
-    >
+      class="bg-gray-800 text-white transition-all duration-300 flex flex-col items-center space-y-4 py-6 overflow-hidden"
+>
       <!-- Toggle Button -->
       <button
         id="toggle-btn"
         class="mb-6 p-2 hover:bg-gray-700 rounded"
         phx-click={
           JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")
-          |> JS.toggle_class("w-48", to: "#sidebar-panel")
-          |> JS.toggle_class("w-16", to: ".sidebar-label")
-          |> JS.toggle(to: ".sidebar-label")
         }
       >
         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +70,6 @@
           </a>
         <% end %>
       </nav>
-    </div>
   </aside>
   <main id="main" class="px-4 py-10 sm:px-6 lg:px-8">
     <!-- <.flash_group flash={@flash} /> -->
