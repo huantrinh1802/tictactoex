@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = {
-  content: ['./js/**/*.js', '../lib/tictactoe_web.ex', '../lib/tictactoex_web/**/*.*ex', './svelte/**/*.svelte'],
+  content: ['./js/**/*.js', '../lib/tic_tac_toe_web.ex', '../lib/tic_tac_toex_web/**/*.*ex', './svelte/**/*.svelte'],
   theme: {
     extend: {
       colors: {

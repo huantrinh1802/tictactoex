@@ -15,9 +15,9 @@ defmodule TicTacToexWeb.RoomChannel do
            ) do
         {:ok, channel} ->
           board = new_board(channel.metadata.height, channel.metadata.width)
-
           socket =
             assign(socket, :token, payload["token"])
+            |> assign(:name, payload["name"])
             |> assign(:room, _private_room_id)
             |> assign(:board, board)
             |> assign(:winning, channel.metadata.winning)
@@ -275,7 +275,8 @@ defmodule TicTacToexWeb.RoomChannel do
 
     Presence.track(socket, socket.assigns.room, %{
       online_at: inspect(System.system_time(:second)),
-      token: socket.assigns.token
+      token: socket.assigns.token,
+      name: socket.assigns.name
     })
 
     push(socket, "presence_state", Presence.list(socket))

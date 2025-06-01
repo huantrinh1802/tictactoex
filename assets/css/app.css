@@ -35,6 +35,9 @@
 
 #header {
   grid-area: header;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 #sidebar-panel {

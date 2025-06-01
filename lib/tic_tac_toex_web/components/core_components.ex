@@ -17,6 +17,10 @@ defmodule TicTacToexWeb.CoreComponents do
   use Phoenix.Component
   use Gettext, backend: TicTacToexWeb.Gettext
 
+  use Phoenix.VerifiedRoutes,
+    endpoint: TicTacToexWeb.Endpoint,
+    router: TicTacToexWeb.Router
+
   alias Phoenix.LiveView.JS
 
   @doc """
@@ -677,5 +681,57 @@ defmodule TicTacToexWeb.CoreComponents do
   """
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+  attr(:current_user, :any, required: true)
+
+  def header_user_section(assigns) do
+    ~H"""
+    <ul class="relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+      <li class="text-[0.8125rem] leading-6 text-zinc-900">
+        <%= if @current_user.name do %>
+          {@current_user.name}
+        <% else %>
+          {@current_user.email}
+        <% end %>
+      </li>
+      <%= if @current_user.id != -1 do %>
+        <li>
+          <.link
+            href={~p"/users/settings"}
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Settings
+          </.link>
+        </li>
+        <li>
+          <.link
+            href={~p"/users/log_out"}
+            method="delete"
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Log out
+          </.link>
+        </li>
+      <% else %>
+        <li>
+          <.link
+            href={~p"/users/register"}
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Register
+          </.link>
+        </li>
+        <li>
+          <.link
+            href={~p"/users/log_in"}
+            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+          >
+            Log in
+          </.link>
+        </li>
+      <% end %>
+    </ul>
+    """
   end
 end
