@@ -954,6 +954,11 @@ select {
   margin-bottom: -1rem;
 }
 
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .mb-4 {
   margin-bottom: 1rem;
 }
@@ -1008,6 +1013,10 @@ select {
 
 .mt-3 {
   margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
 }
 
 .block {
@@ -1075,8 +1084,8 @@ select {
   height: 100%;
 }
 
-.min-h-\[20px\] {
-  min-height: 20px;
+.min-h-\[32px\] {
+  min-height: 32px;
 }
 
 .min-h-\[6rem\] {
@@ -1085,10 +1094,6 @@ select {
 
 .min-h-full {
   min-height: 100%;
-}
-
-.min-h-\[32px\] {
-  min-height: 32px;
 }
 
 .w-1\/4 {
@@ -1145,6 +1150,10 @@ select {
   max-width: 48rem;
 }
 
+.max-w-sm {
+  max-width: 24rem;
+}
+
 .flex-none {
   flex: none;
 }
@@ -1177,12 +1186,20 @@ select {
   cursor: pointer;
 }
 
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .flex-col {
   flex-direction: column;
 }
 
 .items-center {
   align-items: center;
+}
+
+.justify-end {
+  justify-content: flex-end;
 }
 
 .justify-center {
@@ -1221,6 +1238,12 @@ select {
   --tw-space-x-reverse: 0;
   margin-right: calc(0.5rem * var(--tw-space-x-reverse));
   margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+.space-y-12 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(3rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(3rem * var(--tw-space-y-reverse));
 }
 
 .space-y-4 > :not([hidden]) ~ :not([hidden]) {
@@ -1329,6 +1352,11 @@ select {
   background-color: rgb(0 0 0 / var(--tw-bg-opacity));
 }
 
+.bg-blue-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(59 130 246 / var(--tw-bg-opacity));
+}
+
 .bg-emerald-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(236 253 245 / var(--tw-bg-opacity));
@@ -1352,6 +1380,11 @@ select {
 .bg-rose-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(255 241 242 / var(--tw-bg-opacity));
+}
+
+.bg-teal-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(20 184 166 / var(--tw-bg-opacity));
 }
 
 .bg-white {
@@ -1475,6 +1508,10 @@ select {
   text-align: left;
 }
 
+.text-center {
+  text-align: center;
+}
+
 .text-right {
   text-align: right;
 }
@@ -1482,6 +1519,10 @@ select {
 .text-2xl {
   font-size: 1.5rem;
   line-height: 2rem;
+}
+
+.text-\[0\.8125rem\] {
+  font-size: 0.8125rem;
 }
 
 .text-lg {
@@ -1497,6 +1538,10 @@ select {
 .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
+}
+
+.font-bold {
+  font-weight: 700;
 }
 
 .font-medium {
@@ -1526,6 +1571,11 @@ select {
 .text-black {
   --tw-text-opacity: 1;
   color: rgb(0 0 0 / var(--tw-text-opacity));
+}
+
+.text-brand {
+  --tw-text-opacity: 1;
+  color: rgb(253 79 0 / var(--tw-text-opacity));
 }
 
 .text-emerald-800 {
@@ -1718,6 +1768,9 @@ select {
 
 #header {
   grid-area: header;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 #sidebar-panel {
@@ -1760,9 +1813,19 @@ select {
   cursor: pointer;
 }
 
+.hover\:bg-blue-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(29 78 216 / var(--tw-bg-opacity));
+}
+
 .hover\:bg-gray-700:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(55 65 81 / var(--tw-bg-opacity));
+}
+
+.hover\:bg-teal-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(15 118 110 / var(--tw-bg-opacity));
 }
 
 .hover\:bg-zinc-50:hover {
@@ -1778,6 +1841,10 @@ select {
 .hover\:text-zinc-700:hover {
   --tw-text-opacity: 1;
   color: rgb(63 63 70 / var(--tw-text-opacity));
+}
+
+.hover\:underline:hover {
+  text-decoration-line: underline;
 }
 
 .hover\:opacity-40:hover {

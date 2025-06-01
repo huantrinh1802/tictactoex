@@ -1,24 +1,17 @@
 <script>
   import { Presence, Socket } from 'phoenix';
-  import { translate_room_name } from '../lib/utils';
+  import { translate_room_name, initialise_socket } from '../lib/utils';
+  let { user } = $props();
   let rooms = $state({});
   let socket;
   let channel;
   let presence;
-
   $effect(() => {
-    let token = sessionStorage.getItem('token');
-    if (!token) {
-      // token = self.crypto.randomUUID();
-      token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
-      sessionStorage.setItem('token', token);
-    }
-    socket = new Socket('/socket', { params: { token: token } });
-    socket.connect();
+    socket = initialise_socket(user?.email);
     join();
   });
   function join() {
-    channel = socket.channel('lobby', { token: sessionStorage.getItem('token') });
+    channel = socket.channel('lobby', { token: user?.email });
     presence = new Presence(channel);
     channel
       .join()

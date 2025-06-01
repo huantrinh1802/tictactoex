@@ -2,8 +2,8 @@
   import { Presence, Socket } from 'phoenix';
   import { onMount } from 'svelte';
   import { liveViewSockets } from '../stores/liveViewSockets';
-  import { translate_room_name } from '../lib/utils';
-  let { room_name } = $props();
+  import { translate_room_name, initialise_socket } from '../lib/utils';
+  let { room_name, user } = $props();
   let channel;
   let presence;
   let board = $state([]);
@@ -16,48 +16,33 @@
   let turn = $state('X');
   let winningCells = $state([]);
   let winner = $state();
+  let opponent = $state('');
 
   function updateShadows() {
     if (!container) return;
     showLeft = container.scrollLeft > 0;
     showRight = container.scrollLeft + container.clientWidth < container.scrollWidth;
   }
-
-  $effect(() => {
-    console.log('Joining room', room_name);
-  });
   $effect(() => {
     if (container) {
-      console.log('Updating shadows');
       updateShadows();
       container.addEventListener('scroll', updateShadows);
     }
   });
   onMount(() => {
-    let token = sessionStorage.getItem('token');
-    if (!token) {
-      // token = self.crypto.randomUUID();
-      token = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
-      sessionStorage.setItem('token', token);
-    }
-    socket = new Socket('/socket', { params: { token: token } });
-    socket.connect();
-    join();
-    if ($liveViewSockets) {
-      console.log('Connected to live view socket');
-    }
-  });
-  function generateTicTacToeBoard(height, width) {
-    for (let i = 0; i < height; i++) {
-      board.push([]);
-      for (let j = 0; j < width; j++) {
-        board[i].push('');
+    socket = initialise_socket(user.email);
+    if (!socket) {
+      console.log('No socket');
+    } else {
+      join();
+      if ($liveViewSockets) {
+        console.log('Connected to live view socket');
       }
     }
-  }
+  });
   function join() {
-    channel = socket.channel(`room:${room_name}`, { token: sessionStorage.getItem('token') });
-    let token = sessionStorage.getItem('token');
+    channel = socket.channel(`room:${room_name}`, { token: user?.email, name: user?.name });
+    let token = user?.email;
     presence = new Presence(channel);
     channel
       .join()
@@ -106,6 +91,7 @@
         } else {
           player = 'O';
         }
+        opponent = meta.metas.find((m) => m.token != token).name;
       });
     });
   }

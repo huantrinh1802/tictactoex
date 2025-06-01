@@ -9,13 +9,13 @@ defmodule TicTacToexWeb.RoomHTML do
 
   def index(assigns) do
     ~H"""
-    <.svelte name="Game" props={%{room_name: @conn.params["room_name"]}} />
+    <.svelte name="Game" props={%{room_name: @conn.params["room_name"], user: @user}} />
     """
   end
 
   def lobby(assigns) do
     ~H"""
-    <.svelte name="GameLobby" />
+    <.svelte name="GameLobby" props={%{user: @user}} />
     """
   end
 end
