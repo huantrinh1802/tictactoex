@@ -15,6 +15,7 @@ defmodule TicTacToexWeb.RoomChannel do
            ) do
         {:ok, channel} ->
           board = new_board(channel.metadata.height, channel.metadata.width)
+
           socket =
             assign(socket, :token, payload["token"])
             |> assign(:name, payload["name"])
@@ -58,27 +59,8 @@ defmodule TicTacToexWeb.RoomChannel do
     end
   end
 
-  # Channels can be used in a request/response fashion
-  # by sending replies to requests from the client
-  @impl true
-  def handle_in("ping", payload, socket) do
-    {:reply, {:ok, payload}, socket}
-  end
-
-  # It is also common to receive messages from the client and
-  # broadcast to everyone in the current topic (room:lobby).
-  @impl true
-  def handle_in("shout", payload, socket) do
-    broadcast(socket, "shout", payload)
-    {:noreply, socket}
-  end
-
-  def handle_in("start_board", payload, socket) do
-    socket =
-      assign(socket, :board, payload["board"])
-      |> assign(:turn, "X")
-
-    {:noreply, socket}
+  def handle_in("generate_board", payload, socket) do
+    {:reply, {:ok, %{board: socket.assigns.board, turn: socket.assigns.turn}}, socket}
   end
 
   def new_board(height, width) do
@@ -241,17 +223,46 @@ defmodule TicTacToexWeb.RoomChannel do
     end
   end
 
+  def handle_in("sync_game", payload, socket) do
+    socket =
+      assign(socket, :board, payload["board"])
+      |> assign(:turn, payload["turn"])
+
+    broadcast_from!(socket, "sync_game", %{
+      "board" => payload["board"],
+      "turn" => payload["turn"],
+      "player" =>
+        if payload["player"] == "X" do
+          "O"
+        else
+          "X"
+        end
+    })
+
+    {:noreply, socket}
+  end
+
   # Add authorization logic here as required.
   defp authorized?(_payload) do
     true
   end
 
-  intercept(["played"])
+  intercept(["played", "sync_game"])
 
   @impl true
   def handle_out("played", payload, socket) do
     socket = assign(socket, :board, payload["board"]) |> assign(:turn, payload["turn"])
     push(socket, "played", payload)
+    {:noreply, socket}
+  end
+
+  def handle_out("sync_game", payload, socket) do
+    IO.inspect("sync_game")
+    IO.inspect(payload)
+    socket =
+      assign(socket, :board, payload["board"])
+      |> assign(:turn, payload["turn"])
+    push(socket, "sync_game", payload)
     {:noreply, socket}
   end
 
@@ -270,8 +281,6 @@ defmodule TicTacToexWeb.RoomChannel do
         end)
         |> Map.new()
     })
-
-    push(socket, "board_created", %{board: socket.assigns.board, turn: socket.assigns.turn})
 
     Presence.track(socket, socket.assigns.room, %{
       online_at: inspect(System.system_time(:second)),
