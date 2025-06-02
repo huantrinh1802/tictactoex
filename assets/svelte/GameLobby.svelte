@@ -18,12 +18,10 @@
       .receive('ok', (resp) => {
         console.log('Joined successfully', resp);
         channel.on('channel_list', (payload) => {
-          console.log('channel_list', payload);
-          rooms = payload.rooms;
+          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.find((member) => member == user?.email)));
         });
         channel.on('room_changed', (payload) => {
-          console.log('room_created', payload);
-          rooms = payload.rooms;
+          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.find((member) => member == user?.email)));
         });
       })
       .receive('error', (resp) => {
@@ -52,12 +50,16 @@
     onclick={create_and_join_room}>Create Room!</button>
   <div class="rooms-list grid grid-cols-2 items-center justify-center gap-2">
     {#each Object.entries(rooms) as [room, data]}
-      {#if data.count <= 1}
-        <p>{translate_room_name(room)} [{data.height}x{data.width}]</p>
-        <button
-          class="w-fit rounded bg-teal-500 px-4 py-2 font-bold text-white hover:bg-teal-700"
-          onclick={() => join_room(room)}>Join!</button>
-      {/if}
+      <p>{translate_room_name(room)} [{data.height}x{data.width}]</p>
+      <button
+        class="w-fit rounded bg-teal-500 px-4 py-2 font-bold text-white hover:bg-teal-700"
+        onclick={() => join_room(room)}>
+        {#if data.members.includes(user?.email)}
+          Rejoin
+        {:else}
+          Join
+        {/if}
+      </button>
     {/each}
   </div>
 </div>
