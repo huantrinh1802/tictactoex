@@ -1,5 +1,5 @@
 <script>
-  import { Presence, Socket } from 'phoenix';
+  import { Presence } from 'phoenix';
   import { onMount } from 'svelte';
   import { liveViewSockets } from '../stores/liveViewSockets';
   import { translate_room_name, initialise_socket } from '../lib/utils';
@@ -49,6 +49,7 @@
       .receive('ok', (resp) => {
         console.log('Joined successfully', resp);
         channel.on('played', (payload) => {
+          console.log('Played', payload);
           board = payload.board;
           turn = payload.turn;
           // check if need to scroll
@@ -62,13 +63,20 @@
             document.getElementById(`${payload.x}-${payload.y}`).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
           }
         });
-        channel.on('board_created', (payload) => {
-          board = payload.board;
-        });
         channel.on('game_over', (payload) => {
           board = payload.board;
           winningCells = payload.win_coords;
           if (payload?.winner) {
+            winner = payload.winner == player ? user.name : opponent;
+          }
+        });
+        channel.on('sync_game', (payload) => {
+          console.log('sync_game', payload);
+          board = payload.board;
+          turn = payload.turn;
+          player = payload.player;
+          if (payload?.winner) {
+            winningCells = payload.win_coords;
             winner = payload.winner;
           }
         });
@@ -83,15 +91,19 @@
         console.log('Presence list', id, meta);
         if (meta.metas.length < 2) {
           waiting = true;
+          if (board.length == 0) {
+            channel.push('generate_board', { board: board, turn: turn, win_coords: winningCells, winner: winner }).receive('ok', (payload) => {
+              board = payload.board;
+            });
+            player = 'X';
+          }
         } else {
+          opponent = meta.metas.find((m) => m.token != token).name;
           waiting = false;
+          if (board.length > 0) {
+            channel.push('sync_game', { board: board, turn: turn, win_coords: winningCells, winner: winner, player: player });
+          }
         }
-        if (meta.metas.findIndex((m) => m.token == token) == 0) {
-          player = 'X';
-        } else {
-          player = 'O';
-        }
-        opponent = meta.metas.find((m) => m.token != token).name;
       });
     });
   }
@@ -116,14 +128,13 @@
   }
 </script>
 
-<!-- <ServiceWorker bind:serviceWorkerVersion></ServiceWorker> -->
 <div class="flex items-center justify-between gap-2 py-2">
   <h2 class="text-2xl font-semibold">Room: {translate_room_name(room_name)}</h2>
   <button
     class="rounded-lg bg-red-600 px-4 py-2 text-white"
     onclick={() => (window.location.href = '/lobby')}>Leave</button>
 </div>
-{#if board.length > 0 && player && !waiting}
+{#if board.length > 0 && (!waiting || (waiting && winner))}
   <div
     class="banner sticky inset-x-0 top-2 flex w-full items-center justify-between rounded-lg p-4"
     data-winner={winner && player == winner}>
@@ -145,7 +156,7 @@
         </p>
 
         <p class="text-white">
-          Player:
+          You:
           <span
             class="tictactoe-id ml-2 inline-block rounded-lg bg-white px-2 py-1 text-black"
             data-cell={player}>{player}</span>
