@@ -28,8 +28,8 @@ defmodule TicTacToex.ChannelRegistry do
     GenServer.call(__MODULE__, {:register, topic, metadata})
   end
 
-  def count_channels_if_topic_exists(topic, event, token) do
-    GenServer.call(__MODULE__, {:count_if_exists, topic, event, token})
+  def on_channel_event(topic, event, token) do
+    GenServer.call(__MODULE__, {:on_channel_event, topic, event, token})
   end
 
   def unregister_channel(topic) do
@@ -57,8 +57,8 @@ defmodule TicTacToex.ChannelRegistry do
       metadata: metadata,
       registered_at: System.system_time(:second),
       node: Node.self(),
-      count: 0,
-      members: []
+      members: [],
+      active_members: []
     }
 
     # Insert into ETS
@@ -71,19 +71,21 @@ defmodule TicTacToex.ChannelRegistry do
     {:reply, {:ok, result}, state}
   end
 
-  def handle_call({:count_if_exists, key, event, token}, _from, state) do
+  def handle_call({:on_channel_event, key, event, token}, _from, state) do
     case :ets.lookup(@table_name, key) do
       [{key, old_value}] ->
-        IO.inspect(old_value)
-        IO.inspect(event)
-        IO.inspect(token)
-
         case event do
           "join" ->
             if Enum.find(old_value.members, &(&1 == token)) == nil do
               old_value =
-                Map.update!(old_value, :count, &(&1 + 1))
+                Map.update!(old_value, :active_members, &(&1 ++ [token]))
                 |> Map.update!(:members, &(&1 ++ [token]))
+
+              :ets.insert(@table_name, {key, old_value})
+              {:reply, {:ok, old_value}, state}
+            else
+              old_value =
+                Map.update!(old_value, :active_members, &(&1 + 1))
 
               :ets.insert(@table_name, {key, old_value})
               {:reply, {:ok, old_value}, state}
@@ -92,10 +94,10 @@ defmodule TicTacToex.ChannelRegistry do
           "leave" ->
             if Enum.find(old_value.members, &(&1 == token)) != nil do
               old_value =
-                Map.update!(old_value, :count, &(&1 - 1))
-                |> Map.update!(:members, &(&1 -- [token]))
+                old_value
+                |> Map.update!(:active_members, &(&1 -- [token]))
 
-              if old_value.count <= 0 do
+              if length(old_value.active_members) <= 0 do
                 :ets.delete(@table_name, key)
                 {:reply, {:ok, old_value}, state}
               else
@@ -106,6 +108,7 @@ defmodule TicTacToex.ChannelRegistry do
               {:reply, {:ok, old_value}, state}
             end
         end
+
       [] ->
         {:reply, {:not_found, nil}, state}
     end

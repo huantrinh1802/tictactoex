@@ -34,7 +34,7 @@ defmodule TicTacToexWeb.LobbyChannel do
         |> Enum.map(fn {topic, channels} ->
           {topic,
            %{
-             count: channels.count,
+             members: channels.members,
              height: channels.metadata.height,
              width: channels.metadata.width
            }}
@@ -69,7 +69,7 @@ defmodule TicTacToexWeb.LobbyChannel do
           |> Enum.map(fn {topic, channels} ->
             {topic,
              %{
-               count: channels.count,
+               members: channels.members,
                height: channels.metadata.height,
                width: channels.metadata.width
              }}

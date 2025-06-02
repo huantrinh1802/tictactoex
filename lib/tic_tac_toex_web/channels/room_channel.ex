@@ -6,10 +6,10 @@ defmodule TicTacToexWeb.RoomChannel do
   alias TicTacToex.ChannelRegistry
 
   @impl true
-  def join("room:" <> _private_room_id, payload, socket) do
+  def join("room:" <> room_id, payload, socket) do
     if authorized?(payload) do
-      case ChannelRegistry.count_channels_if_topic_exists(
-             _private_room_id,
+      case ChannelRegistry.on_channel_event(
+             room_id,
              "join",
              payload["token"]
            ) do
@@ -19,7 +19,7 @@ defmodule TicTacToexWeb.RoomChannel do
           socket =
             assign(socket, :token, payload["token"])
             |> assign(:name, payload["name"])
-            |> assign(:room, _private_room_id)
+            |> assign(:room, room_id)
             |> assign(:board, board)
             |> assign(:winning, channel.metadata.winning)
             |> assign(:turn, "X")
@@ -37,7 +37,7 @@ defmodule TicTacToexWeb.RoomChannel do
 
   @impl true
   def terminate(_reason, socket) do
-    case ChannelRegistry.count_channels_if_topic_exists(
+    case ChannelRegistry.on_channel_event(
            socket.assigns.room,
            "leave",
            socket.assigns.token
@@ -49,7 +49,7 @@ defmodule TicTacToexWeb.RoomChannel do
             |> Enum.map(fn {topic, channels} ->
               {topic,
                %{
-                 count: channels.count,
+                 members: channels.members,
                  height: channels.metadata.height,
                  width: channels.metadata.width
                }}
@@ -274,7 +274,7 @@ defmodule TicTacToexWeb.RoomChannel do
         |> Enum.map(fn {topic, channels} ->
           {topic,
            %{
-             count: channels.count,
+             members: channels.members,
              height: channels.metadata.height,
              width: channels.metadata.width
            }}
