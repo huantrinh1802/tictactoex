@@ -65,9 +65,12 @@
         });
         channel.on('game_over', (payload) => {
           board = payload.board;
-          winningCells = payload.win_coords;
           if (payload?.winner) {
+            winningCells = payload.win_coords;
             winner = payload.winner == player ? user.name : opponent;
+          }
+          if (payload?.draw) {
+            winner = 'Draw';
           }
         });
         channel.on('sync_game', (payload) => {
@@ -114,9 +117,12 @@
         board = payload.board;
         turn = payload.turn;
         if (payload?.game_over) {
-          winningCells = payload.win_coords;
           if (payload?.winner) {
+            winningCells = payload.win_coords;
             winner = payload.winner;
+          }
+          if (payload?.draw) {
+            winner = 'Draw';
           }
         }
       })
@@ -143,6 +149,8 @@
         <!-- Winner text receives from both sides -->
         <p class="text-xl font-semibold text-white">
           {#if player == winner}You win!
+          {:else if winner == 'Draw'}
+            Draw
           {:else}
             Player {winner} Wins!{/if}
         </p>
@@ -178,14 +186,14 @@
     <!-- Scrollable content -->
     <div
       bind:this={container}
-      class="flex flex-col gap-2 overflow-x-auto">
+      class="scrollable-content flex flex-col gap-2 overflow-x-auto">
       {#each board as row, col_index (col_index)}
-        <div class="flex min-w-max gap-2">
+        <div class="flex gap-2">
           {#each row as cell, row_index (row_index)}
             <button
               disabled={turn != player || cell != '' || winningCells.length > 0}
               id="{col_index}-{row_index}"
-              class="tictactoe-cell aspect-square min-h-[32px] w-full cursor-pointer rounded-md text-white"
+              class="tictactoe-cell aspect-square min-h-[32px] cursor-pointer rounded-md text-white"
               aria-label="{col_index}, {row_index}"
               data-cell={cell}
               data-winning={isWinningCell(col_index, row_index) ? 'true' : 'false'}
@@ -268,5 +276,15 @@
     }
   }
   .board {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  .scrollable-content {
+    scrollbar-width: none;    /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    &::-webkit-scrollbar {
+      display: none;            /* Chrome, Safari, and Edge */
+    }
   }
 </style>

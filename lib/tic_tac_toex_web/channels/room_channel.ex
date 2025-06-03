@@ -82,8 +82,26 @@ defmodule TicTacToexWeb.RoomChannel do
     end)
   end
 
+  def no_possible_win_left?(board, win_length) do
+    all_lines_with_coords(board)
+    |> Enum.all?(fn {line, _coords} ->
+      Enum.all?(@players, fn player ->
+        not line_has_potential_win?(line, player, win_length)
+      end)
+    end)
+  end
+
+  defp line_has_potential_win?(line, player, win_length) do
+    Enum.chunk_every(line, win_length, 1, :discard)
+    |> Enum.any?(fn chunk ->
+      count = Enum.count(chunk, &(&1 == player or &1 == ""))
+      count == win_length and Enum.any?(chunk, &(&1 == player))
+    end)
+  end
+
   def draw?(board, win_length \\ 3) do
-    not check_winner?(board, win_length) and Enum.all?(List.flatten(board), &(&1 in @players))
+      (Enum.all?(List.flatten(board), &(&1 in @players)) or
+         no_possible_win_left?(board, win_length))
   end
 
   defp winning_chunk(line, coords, player, win_length) do
@@ -193,30 +211,43 @@ defmodule TicTacToexWeb.RoomChannel do
       # send(self(), :played, %{"board" => board})
 
       case check_winner?(board, socket.assigns.winning) do
-        nil ->
-          broadcast_from!(socket, "played", %{
-            "board" => board,
-            "x" => _payload["x"],
-            "y" => _payload["y"],
-            "player" => _payload["player"],
-            "turn" => socket.assigns.turn
-          })
-
-          {:reply, {:ok, %{board: board, turn: socket.assigns.turn}}, socket}
-
-        {:ok, _player, _coords} ->
-          coords = Enum.map(_coords, fn {x, y} -> [x, y] end)
+        {:ok, winner, coords} ->
+          win_coords = Enum.map(coords, fn {x, y} -> [x, y] end)
 
           broadcast_from!(socket, "game_over", %{
             "board" => board,
             "x" => _payload["x"],
             "y" => _payload["y"],
-            "winner" => _player,
-            "win_coords" => coords
+            "winner" => winner,
+            "win_coords" => win_coords
           })
 
-          {:reply, {:ok, %{board: board, game_over: true, winner: _player, win_coords: coords}},
+          {:reply,
+           {:ok, %{board: board, game_over: true, winner: winner, win_coords: win_coords}},
            socket}
+
+        nil ->
+          if draw?(board, socket.assigns.winning) do
+            broadcast_from!(socket, "game_over", %{
+              "board" => board,
+              "x" => _payload["x"],
+              "y" => _payload["y"],
+              "winner" => nil,
+              "draw" => true
+            })
+
+            {:reply, {:ok, %{board: board, game_over: true, draw: true}}, socket}
+          else
+            broadcast_from!(socket, "played", %{
+              "board" => board,
+              "x" => _payload["x"],
+              "y" => _payload["y"],
+              "player" => _payload["player"],
+              "turn" => socket.assigns.turn
+            })
+
+            {:reply, {:ok, %{board: board, turn: socket.assigns.turn}}, socket}
+          end
       end
     else
       {:reply, {:error, %{reason: "Invalid move"}}, socket}
@@ -259,9 +290,11 @@ defmodule TicTacToexWeb.RoomChannel do
   def handle_out("sync_game", payload, socket) do
     IO.inspect("sync_game")
     IO.inspect(payload)
+
     socket =
       assign(socket, :board, payload["board"])
       |> assign(:turn, payload["turn"])
+
     push(socket, "sync_game", payload)
     {:noreply, socket}
   end
