@@ -52,12 +52,20 @@
   function join_room(room) {
     window.location.href = '/game/' + room;
   }
+  function onEnter(e) {
+    console.log(e);
+    e.preventDefault();
+    if (e.key === 'Enter') {
+      create_and_join_room();
+      new_room_modal.close();
+    }
+  }
 </script>
 
 <div class="grid w-full gap-4">
   <button
     class="mx-auto w-fit rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
-    onclick={new_room_modal.showModal()}>Create Room!</button>
+    onclick={() => new_room_modal.showModal()}>Create Room!</button>
   <div class="rooms-list grid grid-cols-2 items-center justify-center gap-2">
     {#each Object.entries(rooms) as [room, data]}
       <p>{translate_room_name(room)} [{data.height}x{data.width}]</p>
@@ -89,14 +97,16 @@
       min="3"
       name="size"
       class="input input-bordered"
-      bind:value={new_room.size} />
+      bind:value={new_room.size}
+      onkeypress={onEnter} />
     <label for="winning">Winning Length</label>
     <input
       type="number"
       bind:value={new_room.winning}
       id="winning"
       name="winning"
-      class="input input-bordered" />
+      class="input input-bordered"
+      onkeypress={onEnter} />
     <button class="btn close-btn">Close</button>
     <button
       onclick={create_and_join_room}
@@ -115,8 +125,6 @@
     gap: 1rem;
   }
   .btn {
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
     color: white;
     &.close-btn {
       background-color: red;
@@ -129,18 +137,6 @@
       &:hover {
         background-color: rgb(0, 255, 0, 0.8);
       }
-    }
-  }
-  .modal {
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-    padding: 2rem 2rem;
-    gap: 2rem;
-    &::backdrop {
-      background-color: rgba(0, 0, 0, 0.4);
     }
   }
 </style>

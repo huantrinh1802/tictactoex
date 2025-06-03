@@ -14,14 +14,12 @@ defmodule TicTacToexWeb.RoomChannel do
              payload["token"]
            ) do
         {:ok, channel} ->
-          board = new_board(channel.metadata.height, channel.metadata.width)
-
           socket =
             assign(socket, :token, payload["token"])
             |> assign(:name, payload["name"])
             |> assign(:room, room_id)
-            |> assign(:board, board)
             |> assign(:winning, channel.metadata.winning)
+            |> assign(:board_size, channel.metadata.height)
             |> assign(:turn, "X")
 
           send(self(), :after_join)
@@ -59,7 +57,19 @@ defmodule TicTacToexWeb.RoomChannel do
     end
   end
 
+  def handle_in("prompt_new_game", _payload, socket) do
+    broadcast_from!(socket, "prompt_new_game", %{})
+    {:noreply, socket}
+  end
+
   def handle_in("generate_board", payload, socket) do
+    board = new_board(socket.assigns.board_size, socket.assigns.board_size)
+
+    socket =
+      socket
+      |> assign(:board, board)
+      |> assign(:turn, "X")
+
     {:reply, {:ok, %{board: socket.assigns.board, turn: socket.assigns.turn}}, socket}
   end
 
@@ -100,8 +110,8 @@ defmodule TicTacToexWeb.RoomChannel do
   end
 
   def draw?(board, win_length \\ 3) do
-      (Enum.all?(List.flatten(board), &(&1 in @players)) or
-         no_possible_win_left?(board, win_length))
+    Enum.all?(List.flatten(board), &(&1 in @players)) or
+      no_possible_win_left?(board, win_length)
   end
 
   defp winning_chunk(line, coords, player, win_length) do
@@ -254,6 +264,11 @@ defmodule TicTacToexWeb.RoomChannel do
     end
   end
 
+  def handle_in("decline_new_game", _payload, socket) do
+    broadcast_from!(socket, "new_game_declined", %{})
+    {:noreply, socket}
+  end
+
   def handle_in("sync_game", payload, socket) do
     socket =
       assign(socket, :board, payload["board"])
@@ -267,7 +282,10 @@ defmodule TicTacToexWeb.RoomChannel do
           "O"
         else
           "X"
-        end
+        end,
+      "score_board" => payload["score_board"],
+      "winner" => payload["winner"],
+      "win_coords" => payload["win_coords"]
     })
 
     {:noreply, socket}
@@ -288,9 +306,6 @@ defmodule TicTacToexWeb.RoomChannel do
   end
 
   def handle_out("sync_game", payload, socket) do
-    IO.inspect("sync_game")
-    IO.inspect(payload)
-
     socket =
       assign(socket, :board, payload["board"])
       |> assign(:turn, payload["turn"])

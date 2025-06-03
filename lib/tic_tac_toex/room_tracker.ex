@@ -85,7 +85,7 @@ defmodule TicTacToex.ChannelRegistry do
               {:reply, {:ok, old_value}, state}
             else
               old_value =
-                Map.update!(old_value, :active_members, &(&1 + 1))
+                Map.update!(old_value, :active_members, &(&1 ++ [token]))
 
               :ets.insert(@table_name, {key, old_value})
               {:reply, {:ok, old_value}, state}
