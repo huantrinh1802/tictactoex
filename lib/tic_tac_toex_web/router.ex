@@ -20,8 +20,10 @@ defmodule TicTacToexWeb.Router do
   scope "/", TicTacToexWeb do
     pipe_through([:browser])
     get("/", HomeController, :home)
-    get("/game/:room_name", RoomController, :game)
-    get("/lobby", RoomController, :lobby)
+    live_session :fetch_current_user, on_mount: [{TicTacToexWeb.UserAuth, :mount_current_user}] do
+      live("/lobby", GameLobbyLive, :new)
+      live("/game/:room_name", GameLive, :new)
+    end
   end
 
   ## Authentication routes

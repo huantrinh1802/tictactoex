@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { liveViewSockets } from '../stores/liveViewSockets';
   import { translate_room_name, initialise_socket } from '../lib/utils';
-  let { room_name, user } = $props();
+  let { room_name, user, live } = $props();
   let channel;
   let presence;
   let board = $state([]);
@@ -176,7 +176,8 @@
     channel.push('decline_new_game', {}).receive('ok', (payload) => {});
   }
   function leave() {
-    window.location.href = '/lobby';
+    channel.leave();
+    live.pushEvent('navigate_to', { to: '/lobby' });
   }
 </script>
 

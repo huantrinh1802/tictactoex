@@ -1,7 +1,7 @@
 <script>
   import { Presence, Socket } from 'phoenix';
   import { translate_room_name, initialise_socket } from '../lib/utils';
-  let { user } = $props();
+  let { user, live } = $props();
   let rooms = $state({});
   let socket;
   let channel;
@@ -45,15 +45,15 @@
     channel
       .push('create_room', { height: new_room.size, width: new_room.size, winning: new_room.winning })
       .receive('ok', (payload) => {
-        window.location.href = '/game/' + payload.room;
+        live.pushEvent("navigate_to", { to: '/game/' + payload.room });
       })
       .receive('error', (err) => console.log('phoenix errored', err));
   }
   function join_room(room) {
-    window.location.href = '/game/' + room;
+    channel.leave();
+    live.pushEvent("navigate_to", { to: '/game/' + room });
   }
   function onEnter(e) {
-    console.log(e);
     e.preventDefault();
     if (e.key === 'Enter') {
       create_and_join_room();
