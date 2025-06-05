@@ -167,7 +167,7 @@ defmodule TicTacToexWeb.UserAuth do
   def on_mount(:redirect_if_user_is_authenticated, _params, session, socket) do
     socket = mount_current_user(socket, session)
 
-    if socket.assigns.current_user do
+    if socket.assigns.current_user && socket.assigns.current_user.id != -1 do
       {:halt, Phoenix.LiveView.redirect(socket, to: signed_in_path(socket))}
     else
       {:cont, socket}
@@ -186,7 +186,10 @@ defmodule TicTacToexWeb.UserAuth do
   Used for routes that require the user to not be authenticated.
   """
   def redirect_if_user_is_authenticated(conn, _opts) do
-    if conn.assigns[:current_user] do
+    user = conn.assigns[:current_user]
+    IO.inspect(user)
+    if user && user.id != -1 do
+      IO.inspect(user.id)
       conn
       |> redirect(to: signed_in_path(conn))
       |> halt()

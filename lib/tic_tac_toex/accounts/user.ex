@@ -43,6 +43,11 @@ defmodule TicTacToex.Accounts.User do
     |> validate_password(opts)
   end
 
+  def anonymous_registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:name, :email])
+    |> validate_email(opts)
+  end
   defp validate_email(changeset, opts) do
     changeset
     |> validate_required([:email])

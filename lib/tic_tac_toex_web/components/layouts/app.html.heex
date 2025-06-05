@@ -2,22 +2,20 @@
   <header id="header" class="px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
       <div class="flex items-center gap-4">
-      <button
-        id="toggle-btn"
-        class="p-2 hover:bg-gray-700 rounded md:hidden"
-        phx-click={
-          JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")
-        }
-      >
-        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      </button>
+        <button
+          id="toggle-btn"
+          class="p-2 hover:bg-gray-700 rounded md:hidden"
+          phx-click={JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")}
+        >
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
         <a href="/" class="h-[2rem] w-[2rem]">
           {Phoenix.HTML.raw(File.read!("priv/static/icons/icons.svg"))}
         </a>
@@ -26,51 +24,51 @@
         </p>
       </div>
     </div>
-    <.header_user_section current_user={@current_user}/> 
+    <.header_user_section current_user={@current_user} />
   </header>
-  <aside       id="sidebar-panel"
-      data-open="false"
-      class="bg-gray-800 text-white transition-all duration-300 flex flex-col items-center space-y-4 py-6 overflow-hidden"
->
-      <!-- Toggle Button -->
-      <button
-        id="toggle-btn"
-        class="mb-6 p-2 hover:bg-gray-700 rounded"
-        phx-click={
-          JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")
-        }
-      >
-        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      </button>
-
+  <aside
+    id="sidebar-panel"
+    data-open="false"
+    class="bg-gray-800 text-white transition-all duration-300 flex flex-col items-center space-y-4 py-6 overflow-hidden"
+  >
+    <!-- Toggle Button -->
+    <button
+      id="toggle-btn"
+      class="mb-6 p-2 hover:bg-gray-700 rounded"
+      phx-click={JS.toggle_attribute({"data-open", "true", "false"}, to: "#sidebar-panel")}
+    >
+      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 6h16M4 12h16M4 18h16"
+        />
+      </svg>
+    </button>
+    
 <!-- Navigation Items -->
-      <% sidebar_items = [
-        %{label: "Dashboard", icon: "/icons/dashboard.svg", path: "/"},
-        %{label: "Svelte", icon: "/icons/tasks.svg", path: "/svelte"},
-        %{label: "Settings", icon: "/icons/settings.svg", path: "/settings"}
-      ] %>
-      <nav class="flex flex-col sidebar-items space-y-4 w-full px-2">
-        <%= for item <- sidebar_items do %>
-          <a
-            href={item.path}
-            data-phx-link="redirect"
-            data-phx-link-state="push"
-            data-phx-link="redirect"
-            data-phx-link-state="push"
-            class="flex sidebar-item-container items-center space-x-2"
-          >
-            {Phoenix.HTML.raw(File.read!("priv/static" <> item.icon))}
-            <span class="sidebar-label hidden">{item.label}</span>
-          </a>
-        <% end %>
-      </nav>
+    <% sidebar_items = [
+      %{label: "Lobby", icon: "/icons/lobby.svg", path: "/lobby"},
+      %{label: "Leaderboard", icon: "/icons/table.svg", path: "/leaderboard"},
+    ] %>
+    <nav class="flex flex-col sidebar-items space-y-4 w-full px-2">
+      <%= for item <- sidebar_items do %>
+        <a
+          href={item.path}
+          data-phx-link="redirect"
+          data-phx-link-state="push"
+          data-phx-link="redirect"
+          data-phx-link-state="push"
+          class="flex sidebar-item-container items-center space-x-2"
+        >
+          <span class="sidebar-icon w-6 h-6">
+          {Phoenix.HTML.raw(File.read!("priv/static" <> item.icon))}
+          </span>
+          <span class="sidebar-label hidden">{item.label}</span>
+        </a>
+      <% end %>
+    </nav>
   </aside>
   <main id="main" class="px-4 py-10 sm:px-6 lg:px-8">
     <!-- <.flash_group flash={@flash} /> -->
