@@ -23,6 +23,7 @@ defmodule TicTacToexWeb.Router do
     live_session :fetch_current_user, on_mount: [{TicTacToexWeb.UserAuth, :mount_current_user}] do
       live("/lobby", GameLobbyLive, :new)
       live("/game/:room_name", GameLive, :new)
+      live("/scoreboard", ScoreboardLive, :new)
     end
   end
 
