@@ -11,3 +11,4 @@ erl_crash.dump
 priv/svelte
 priv/static/assets
 .DS_Store
+assets/node_modules
