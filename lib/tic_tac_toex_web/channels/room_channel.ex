@@ -1,5 +1,5 @@
 defmodule TicTacToexWeb.RoomChannel do
-  @players ["X", "O"]
+  @players ["x", "o"]
   @empty_cell ""
   use TicTacToexWeb, :channel
   alias TicTacToexWeb.Presence
@@ -20,7 +20,7 @@ defmodule TicTacToexWeb.RoomChannel do
             |> assign(:room, room_id)
             |> assign(:winning, channel.metadata.winning)
             |> assign(:board_size, channel.metadata.height)
-            |> assign(:turn, "X")
+            |> assign(:turn, @players |> Enum.random())
 
           send(self(), :after_join)
           {:ok, socket}
@@ -68,9 +68,10 @@ defmodule TicTacToexWeb.RoomChannel do
     socket =
       socket
       |> assign(:board, board)
-      |> assign(:turn, "X")
+      |> assign(:turn, @players |> Enum.random())
+      |> assign(:player, @players |> Enum.random())
 
-    {:reply, {:ok, %{board: socket.assigns.board, turn: socket.assigns.turn}}, socket}
+    {:reply, {:ok, %{board: socket.assigns.board, turn: socket.assigns.turn, player: socket.assigns.player}}, socket}
   end
 
   def new_board(height, width) do
@@ -212,10 +213,10 @@ defmodule TicTacToexWeb.RoomChannel do
         assign(socket, :board, board)
         |> assign(
           :turn,
-          case socket.assigns.turn do
-            "X" -> "O"
-            _ -> "X"
-          end
+          @players
+          |> Enum.find(fn player ->
+            player != _payload["player"]
+          end)
         )
 
       # send(self(), :played, %{"board" => board})
@@ -278,11 +279,10 @@ defmodule TicTacToexWeb.RoomChannel do
       "board" => payload["board"],
       "turn" => payload["turn"],
       "player" =>
-        if payload["player"] == "X" do
-          "O"
-        else
-          "X"
-        end,
+        @players
+        |> Enum.find(fn player ->
+          player != payload["player"]
+        end),
       "score_board" => payload["score_board"],
       "winner" => payload["winner"],
       "win_coords" => payload["win_coords"]

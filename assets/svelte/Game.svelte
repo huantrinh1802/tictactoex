@@ -13,7 +13,7 @@
   let showLeft = $state(false); // false;
   let showRight = $state(false); // false;
   let waiting = $state(true);
-  let turn = $state('X');
+  let turn = $state('');
   let winningCells = $state([]);
   let winner = $state();
   let opponent = $state('');
@@ -112,10 +112,11 @@
         if (meta.metas.length < 2) {
           waiting = true;
           if (board.length == 0) {
-            channel.push('generate_board', { board: board, turn: turn, win_coords: winningCells, winner: winner }).receive('ok', (payload) => {
+            channel.push('generate_board', { board: board, win_coords: winningCells, winner: winner }).receive('ok', (payload) => {
               board = payload.board;
+              player = payload.player;
+              turn = payload.turn;
             });
-            player = 'X';
           }
         } else {
           opponent = meta.metas.find((m) => m.token != token).name;
@@ -165,6 +166,7 @@
     channel.push('generate_board', {}).receive('ok', (payload) => {
       board = payload.board;
       turn = payload.turn;
+      player = payload.player;
       winner = null;
       winningCells = [];
       show_play_again_button = true;
@@ -185,9 +187,11 @@
   class="banner sticky inset-x-0 top-2 flex w-full flex-col items-center justify-between rounded-lg px-4 py-6"
   data-winner={winner && player == winner}>
   {#if player && waiting}
-    <div class="flex gap-2 flex-col">
+    <div class="flex flex-col gap-2">
       <p class="text-white">Waiting for another player...</p>
-      <button class="rounded-lg bg-red-600 px-4 py-2 text-white" onclick={leave}>Leave</button>
+      <button
+        class="rounded-lg bg-red-600 px-4 py-2 text-white"
+        onclick={leave}>Leave</button>
     </div>
   {:else}
     <div class="scoreboard absolute -top-[2.5rem] left-1/2 grid -translate-x-1/2 grid-cols-3 items-center rounded-full px-4 py-2 text-white shadow-lg">
@@ -269,7 +273,7 @@
               aria-label="{col_index}, {row_index}"
               data-cell={cell}
               data-winning={isWinningCell(col_index, row_index) ? 'true' : 'false'}
-              onclick={() => play(col_index, row_index)}>{cell}</button>
+              onclick={() => play(col_index, row_index)}>{cell.toUpperCase()}</button>
           {/each}
         </div>
       {/each}
@@ -319,20 +323,20 @@
       color: black;
     }
 
-    &[data-cell='O'][data-winning='false'] {
+    &[data-cell='o'][data-winning='false'] {
       background-color: #dc2626; /* Tailwind red-600 */
     }
 
-    &[data-cell='X'][data-winning='false'] {
+    &[data-cell='x'][data-winning='false'] {
       background-color: #134e4a; /* Tailwind teal-900 */
     }
 
-    &[data-cell='O'][data-winning='true'] {
+    &[data-cell='o'][data-winning='true'] {
       background-color: #facc15; /* Tailwind yellow-400 */
       animation: pulse-win 1s infinite;
     }
 
-    &[data-cell='X'][data-winning='true'] {
+    &[data-cell='x'][data-winning='true'] {
       background-color: #4ade80; /* Tailwind green-400 */
       animation: pulse-win 1s infinite;
     }
@@ -351,11 +355,11 @@
   .tictactoe-id {
     background-color: #4f46e5; /* Tailwind indigo-600 */
     color: white;
-    &[data-cell='O'] {
+    &[data-cell='o'] {
       background-color: #dc2626; /* Tailwind red-600 */
     }
 
-    &[data-cell='X'] {
+    &[data-cell='x'] {
       background-color: #134e4a; /* Tailwind teal-900 */
     }
   }
