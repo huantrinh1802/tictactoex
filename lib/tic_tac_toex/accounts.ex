@@ -90,7 +90,7 @@ defmodule TicTacToex.Accounts do
 
   """
   def change_user_registration(%User{} = user, attrs \\ %{}) do
-    User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+    User.registration_changeset(user, attrs, hash_password: false, validate_email: true)
   end
 
   ## Settings
@@ -362,5 +362,33 @@ defmodule TicTacToex.Accounts do
       {:ok, %{user: user}} -> {:ok, user}
       {:error, :user, changeset, _} -> {:error, changeset}
     end
+  end
+
+  def create_guest_user(attrs \\ %{}) do
+    # Set a fake password (or nil if you're using nullable hash field for guest users)
+    password = random_string(12)
+
+    %User{}
+    |> User.registration_changeset(
+      Map.merge(attrs, %{
+        password: password
+      })
+    )
+    |> Ecto.Changeset.put_change(:guest, true)
+    |> Repo.insert()
+  end
+
+  defp random_string(len) do
+    :crypto.strong_rand_bytes(len)
+    |> Base.url_encode64(padding: false)
+    |> binary_part(0, len)
+  end
+
+  def convert_guest_user(guest_user, attrs) do
+    guest_user
+    |> Ecto.Changeset.change(guest: false)
+    # sets password, name, etc.
+    |> User.registration_changeset(attrs)
+    |> Repo.update()
   end
 end

@@ -31,6 +31,15 @@ defmodule TicTacToexWeb.UserRegistrationLive do
           Oops, something went wrong! Please check the errors below.
         </.error>
 
+        <%= if  @current_user do %>
+          <.input
+            field={@form[:guest_email]}
+            type="email"
+            label="Existing guest email"
+            readonly
+            value={@current_user.email}
+          />
+        <% end %>
         <.input field={@form[:email]} type="email" label="Email" required />
         <.input field={@form[:name]} type="text" label="Name" required />
         <.input field={@form[:password]} type="password" label="Password" required />
@@ -54,20 +63,44 @@ defmodule TicTacToexWeb.UserRegistrationLive do
     {:ok, socket, temporary_assigns: [form: nil]}
   end
 
-  def handle_event("save", %{"user" => user_params}, socket) do
-    case Accounts.register_user(user_params) do
+  defp convert_guest_to_user(guest, user_params, socket) do
+    case Accounts.convert_guest_user(guest, user_params) do
       {:ok, user} ->
-        {:ok, _} =
-          Accounts.deliver_user_confirmation_instructions(
-            user,
-            &url(~p"/users/confirm/#{&1}")
-          )
+        Accounts.deliver_user_confirmation_instructions(
+          user,
+          &url(~p"/users/confirm/#{&1}")
+        )
 
-        changeset = Accounts.change_user_registration(user)
-        {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}
+        {:noreply,
+         socket
+         |> assign(trigger_submit: true)
+         |> assign_form(Accounts.change_user_registration(user))}
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
+      {:error, changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  def handle_event("save", %{"user" => user_params}, socket) do
+    cond do
+      socket.assigns.current_user != nil and socket.assigns.current_user.guest ->
+        convert_guest_to_user(socket.assigns.current_user, user_params, socket)
+
+      true ->
+        case Accounts.register_user(user_params) do
+          {:ok, user} ->
+            {:ok, _} =
+              Accounts.deliver_user_confirmation_instructions(
+                user,
+                &url(~p"/users/confirm/#{&1}")
+              )
+
+            changeset = Accounts.change_user_registration(user)
+            {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
+        end
     end
   end
 

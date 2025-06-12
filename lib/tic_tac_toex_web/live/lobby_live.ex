@@ -17,15 +17,17 @@ defmodule TicTacToexWeb.GameLobbyLive do
         (fn ->
            cond do
              socket.assigns.current_user ->
-               socket.assigns.current_user |> Map.take([:id, :name, :email])
+               socket.assigns.current_user |> Map.take([:id, :name, :email, :guest])
 
              session["current_user"] ->
                session["current_user"]
+
+             true ->
+               nil
            end
          end).()
       )
 
-    IO.inspect(socket.assigns.current_user)
     {:ok, socket}
   end
 

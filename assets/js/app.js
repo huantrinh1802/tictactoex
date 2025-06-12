@@ -16,53 +16,84 @@
 //
 
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
-import "phoenix_html";
+import 'phoenix_html';
 // Establish Phoenix Socket and LiveView configuration.
-import { Socket } from "phoenix";
-import { LiveSocket } from "phoenix_live_view";
-import topbar from "../vendor/topbar";
-import { getHooks } from "live_svelte";
-import * as Components from "../svelte/**/*.svelte";
-import "./user_socket.js";
+import { Socket } from 'phoenix';
+import { LiveSocket } from 'phoenix_live_view';
+import topbar from '../vendor/topbar';
+import { getHooks } from 'live_svelte';
+import * as Components from '../svelte/**/*.svelte';
+import './user_socket.js';
 
-let Hooks = {...getHooks(Components)};
+let Hooks = { ...getHooks(Components) };
 
 Hooks.Dialog = {
   mounted() {
     const triggerId = this.el.dataset.trigger;
-    document.querySelector(`#${triggerId}`).addEventListener("click", () => {
+    document.querySelector(`#${triggerId}`).addEventListener('click', () => {
       this.el.showModal();
     });
-    this.handleEvent("finish", (event) => {
+    this.handleEvent('finish', (event) => {
       this.el.close();
     });
   },
 };
+Hooks.ShowDialog = {
+  mounted() {
+    this.handleEvent('open_dialog', ({ id }) => {
+      const dialog = document.getElementById(id);
+      if (dialog && !dialog.open) {
+        dialog.showModal();
+      }
+    });
+  },
+};
 
-let csrfToken = document
-  .querySelector("meta[name='csrf-token']")
-  .getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, {
+Hooks.CopyToClipboard = {
+  mounted() {
+    const targetId = this.el.dataset.copyTarget;
+    const element = document.getElementById(targetId);
+
+    this.el.addEventListener('click', async () => {
+      if (!element) return;
+
+      const textToCopy = element.textContent?.trim() || '';
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+
+        this.el.textContent = '✅';
+        setTimeout(() => {
+          this.el.textContent = '📋';
+        }, 1000);
+      } catch (err) {
+        console.error('Copy to clipboard failed', err);
+        this.el.textContent = '❌';
+      }
+    });
+  },
+};
+let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute('content');
+let liveSocket = new LiveSocket('/live', Socket, {
   hooks: Hooks,
   params: { _csrf_token: csrfToken },
   dom: {
     onBeforeElUpdated: (fromEl, toEl) => {
-      if (["DIALOG", "DETAILS"].indexOf(fromEl.tagName) >= 0) {
+      if (['DIALOG', 'DETAILS'].indexOf(fromEl.tagName) >= 0) {
         Array.from(fromEl.attributes).forEach((attr) => {
           toEl.setAttribute(attr.name, attr.value);
         });
       }
     },
     onDisconnect(el) {
-      console.log("LiveView disconnected from server");
+      console.log('LiveView disconnected from server');
     },
   },
 });
 
 // Show progress bar on live navigation and form submits
-topbar.config({ barColors: { 0: "#29d" }, shadowColor: "rgba(0, 0, 0, .3)" });
-window.addEventListener("phx:page-loading-start", (_info) => topbar.show(300));
-window.addEventListener("phx:page-loading-stop", (_info) => topbar.hide());
+topbar.config({ barColors: { 0: '#29d' }, shadowColor: 'rgba(0, 0, 0, .3)' });
+window.addEventListener('phx:page-loading-start', (_info) => topbar.show(300));
+window.addEventListener('phx:page-loading-stop', (_info) => topbar.hide());
 
 // connect if there are any LiveViews on the page
 liveSocket.connect();

@@ -10,7 +10,6 @@ defmodule TicTacToexWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(:fetch_current_user)
-    plug TicTacToexWeb.Plugs.AssignGuestUser
   end
 
   pipeline :api do
@@ -20,7 +19,12 @@ defmodule TicTacToexWeb.Router do
   scope "/", TicTacToexWeb do
     pipe_through([:browser])
     get("/", HomeController, :home)
-    live_session :fetch_current_user, on_mount: [{TicTacToexWeb.UserAuth, :mount_current_user}] do
+
+    live_session :fetch_current_user,
+      on_mount: [
+        {TicTacToexWeb.UserAuth, :mount_current_user},
+        {TicTacToexWeb.UserAuth, :ensure_authenticated}
+      ] do
       live("/lobby", GameLobbyLive, :new)
       live("/game/:room_name", GameLive, :new)
       live("/scoreboard", ScoreboardLive, :new)
@@ -42,6 +46,7 @@ defmodule TicTacToexWeb.Router do
     end
 
     post("/users/log_in", UserSessionController, :create)
+    get("/users/guest_session", UserSessionController, :guest_session)
   end
 
   scope "/", TicTacToexWeb do

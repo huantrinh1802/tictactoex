@@ -695,7 +695,7 @@ defmodule TicTacToexWeb.CoreComponents do
           {@current_user.email}
         <% end %>
       </li>
-      <%= if @current_user.id != -1 do %>
+      <%= if !@current_user.guest do %>
         <li>
           <.link
             href={~p"/users/settings"}
@@ -720,14 +720,6 @@ defmodule TicTacToexWeb.CoreComponents do
             class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
           >
             Register
-          </.link>
-        </li>
-        <li>
-          <.link
-            href={~p"/users/log_in"}
-            class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
-          >
-            Log in
           </.link>
         </li>
       <% end %>

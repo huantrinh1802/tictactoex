@@ -39,4 +39,18 @@ defmodule TicTacToexWeb.UserSessionController do
     |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
   end
+
+  def guest_session(conn, %{"token" => token}) do
+    case Accounts.get_user_by_session_token(URI.decode(token)) do
+      nil ->
+        conn
+        |> put_flash(:error, "Invalid session token")
+        |> redirect(to: ~p"/users/log_in")
+
+      user ->
+        conn
+        |> TicTacToexWeb.UserAuth.log_in_user(user)
+        |> redirect(to: ~p"/")
+    end
+  end
 end

@@ -9,6 +9,7 @@ defmodule TicTacToex.Accounts.User do
     field(:hashed_password, :string, redact: true)
     field(:current_password, :string, virtual: true, redact: true)
     field(:confirmed_at, :utc_datetime)
+    field(:guest, :boolean, default: false)
 
     timestamps(type: :utc_datetime)
   end
@@ -49,6 +50,7 @@ defmodule TicTacToex.Accounts.User do
     |> cast(attrs, [:name, :email])
     |> validate_email(opts)
   end
+
   defp validate_email(changeset, opts) do
     changeset
     |> validate_required([:email])

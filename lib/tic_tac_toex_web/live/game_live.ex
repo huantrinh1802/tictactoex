@@ -15,7 +15,7 @@ defmodule TicTacToexWeb.GameLive do
         (fn ->
            cond do
              socket.assigns.current_user ->
-               socket.assigns.current_user |> Map.take([:id, :name, :email])
+               socket.assigns.current_user |> Map.take([:id, :name, :email, :guest])
 
              session["current_user"] ->
                session["current_user"]
