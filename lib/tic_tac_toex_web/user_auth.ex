@@ -93,7 +93,12 @@ defmodule TicTacToexWeb.UserAuth do
   def fetch_current_user(conn, _opts) do
     {user_token, conn} = ensure_user_token(conn)
     user = user_token && Accounts.get_user_by_session_token(user_token)
-    assign(conn, :current_user, user)
+
+    if user do
+      assign(conn, :current_user, user)
+    else
+      assign(conn, :current_user, conn.private.plug_session["current_user"])
+    end
   end
 
   defp ensure_user_token(conn) do
@@ -177,7 +182,11 @@ defmodule TicTacToexWeb.UserAuth do
   defp mount_current_user(socket, session) do
     Phoenix.Component.assign_new(socket, :current_user, fn ->
       if user_token = session["user_token"] do
-        Accounts.get_user_by_session_token(user_token)
+        if user = Accounts.get_user_by_session_token(user_token) do
+          user
+        else
+          session.current_user
+        end
       end
     end)
   end
@@ -187,9 +196,8 @@ defmodule TicTacToexWeb.UserAuth do
   """
   def redirect_if_user_is_authenticated(conn, _opts) do
     user = conn.assigns[:current_user]
-    IO.inspect(user)
+
     if user && user.id != -1 do
-      IO.inspect(user.id)
       conn
       |> redirect(to: signed_in_path(conn))
       |> halt()

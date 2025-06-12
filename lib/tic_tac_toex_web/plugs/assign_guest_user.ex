@@ -26,7 +26,7 @@ defmodule TicTacToexWeb.Plugs.AssignGuestUser do
         }
 
         conn
-        |> put_session(:guest_user, guest_user)
+        |> put_session(:current_user, guest_user)
         |> assign(:current_user, guest_user)
     end
   end

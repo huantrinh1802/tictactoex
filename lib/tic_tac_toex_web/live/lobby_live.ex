@@ -3,16 +3,30 @@ defmodule TicTacToexWeb.GameLobbyLive do
 
   def render(assigns) do
     ~H"""
-    <.svelte name="GameLobby" props={%{user: @user}} />
+    <.svelte name="GameLobby" props={%{user: @current_user}} />
     """
   end
 
-  def mount(_params, _session, socket) do
-    user =
-      socket.assigns.current_user
-      |> Map.take([:id, :email, :name])
+  def mount(_params, session, socket) do
+    IO.inspect(socket.assigns.current_user)
 
-    {:ok, assign(socket, :user, user)}
+    socket =
+      assign(
+        socket,
+        :current_user,
+        (fn ->
+           cond do
+             socket.assigns.current_user ->
+               socket.assigns.current_user |> Map.take([:id, :name, :email])
+
+             session["current_user"] ->
+               session["current_user"]
+           end
+         end).()
+      )
+
+    IO.inspect(socket.assigns.current_user)
+    {:ok, socket}
   end
 
   def handle_event("navigate_to", %{"to" => path}, socket) do
