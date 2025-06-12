@@ -7,29 +7,25 @@ defmodule TicTacToexWeb.RoomChannel do
 
   @impl true
   def join("room:" <> room_id, payload, socket) do
-    if authorized?(payload) do
-      case ChannelRegistry.on_channel_event(
-             room_id,
-             "join",
-             payload["token"]
-           ) do
-        {:ok, channel} ->
-          socket =
-            assign(socket, :token, payload["token"])
-            |> assign(:name, payload["name"])
-            |> assign(:room, room_id)
-            |> assign(:winning, channel.metadata.winning)
-            |> assign(:board_size, channel.metadata.height)
-            |> assign(:turn, @players |> Enum.random())
+    case ChannelRegistry.on_channel_event(
+           room_id,
+           "join",
+           payload["token"]
+         ) do
+      {:ok, channel} ->
+        socket =
+          assign(socket, :token, payload["token"])
+          |> assign(:name, payload["name"])
+          |> assign(:room, room_id)
+          |> assign(:winning, channel.metadata.winning)
+          |> assign(:board_size, channel.metadata.height)
+          |> assign(:turn, @players |> Enum.random())
 
-          send(self(), :after_join)
-          {:ok, socket}
+        send(self(), :after_join)
+        {:ok, socket}
 
-        {_, _} ->
-          {:error, %{reason: "room not found"}}
-      end
-    else
-      {:error, %{reason: "unauthorized"}}
+      {_, _} ->
+        {:error, %{reason: "room not found"}}
     end
   end
 
@@ -40,7 +36,7 @@ defmodule TicTacToexWeb.RoomChannel do
            "leave",
            socket.assigns.token
          ) do
-      {:ok, channel} ->
+      {:ok, _channel} ->
         TicTacToexWeb.Endpoint.broadcast("lobby", "room_changed", %{
           rooms:
             ChannelRegistry.list_all_channels()
@@ -55,23 +51,6 @@ defmodule TicTacToexWeb.RoomChannel do
             |> Map.new()
         })
     end
-  end
-
-  def handle_in("prompt_new_game", _payload, socket) do
-    broadcast_from!(socket, "prompt_new_game", %{})
-    {:noreply, socket}
-  end
-
-  def handle_in("generate_board", payload, socket) do
-    board = new_board(socket.assigns.board_size, socket.assigns.board_size)
-
-    socket =
-      socket
-      |> assign(:board, board)
-      |> assign(:turn, @players |> Enum.random())
-      |> assign(:player, @players |> Enum.random())
-
-    {:reply, {:ok, %{board: socket.assigns.board, turn: socket.assigns.turn, player: socket.assigns.player}}, socket}
   end
 
   def new_board(height, width) do
@@ -131,8 +110,6 @@ defmodule TicTacToexWeb.RoomChannel do
   end
 
   defp all_lines_with_coords(board) do
-    size = length(board)
-
     rows =
       for {row, i} <- Enum.with_index(board) do
         coords = for j <- 0..(length(row) - 1), do: {i, j}
@@ -197,15 +174,15 @@ defmodule TicTacToexWeb.RoomChannel do
     diagonals1 ++ diagonals2
   end
 
-  def handle_in("play", _payload, socket) do
-    if get_in(socket.assigns, [:board, Access.at(_payload["x"]), Access.at(_payload["y"])]) == "" or
-         socket.assigns.turn == _payload["player"] do
+  def handle_in("play", payload, socket) do
+    if get_in(socket.assigns, [:board, Access.at(payload["x"]), Access.at(payload["y"])]) == "" or
+         socket.assigns.turn == payload["player"] do
       board =
         update_in(
           socket.assigns.board,
-          [Access.at(_payload["x"]), Access.at(_payload["y"])],
+          [Access.at(payload["x"]), Access.at(payload["y"])],
           fn _ ->
-            _payload["player"]
+            payload["player"]
           end
         )
 
@@ -215,7 +192,7 @@ defmodule TicTacToexWeb.RoomChannel do
           :turn,
           @players
           |> Enum.find(fn player ->
-            player != _payload["player"]
+            player != payload["player"]
           end)
         )
 
@@ -227,8 +204,8 @@ defmodule TicTacToexWeb.RoomChannel do
 
           broadcast_from!(socket, "game_over", %{
             "board" => board,
-            "x" => _payload["x"],
-            "y" => _payload["y"],
+            "x" => payload["x"],
+            "y" => payload["y"],
             "winner" => winner,
             "win_coords" => win_coords
           })
@@ -241,8 +218,8 @@ defmodule TicTacToexWeb.RoomChannel do
           if draw?(board, socket.assigns.winning) do
             broadcast_from!(socket, "game_over", %{
               "board" => board,
-              "x" => _payload["x"],
-              "y" => _payload["y"],
+              "x" => payload["x"],
+              "y" => payload["y"],
               "winner" => nil,
               "draw" => true
             })
@@ -251,9 +228,9 @@ defmodule TicTacToexWeb.RoomChannel do
           else
             broadcast_from!(socket, "played", %{
               "board" => board,
-              "x" => _payload["x"],
-              "y" => _payload["y"],
-              "player" => _payload["player"],
+              "x" => payload["x"],
+              "y" => payload["y"],
+              "player" => payload["player"],
               "turn" => socket.assigns.turn
             })
 
@@ -263,6 +240,28 @@ defmodule TicTacToexWeb.RoomChannel do
     else
       {:reply, {:error, %{reason: "Invalid move"}}, socket}
     end
+  end
+
+  @impl true
+  def handle_in("prompt_new_game", _payload, socket) do
+    broadcast_from!(socket, "prompt_new_game", %{})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("generate_board", _payload, socket) do
+    board = new_board(socket.assigns.board_size, socket.assigns.board_size)
+
+    socket =
+      socket
+      |> assign(:board, board)
+      |> assign(:turn, @players |> Enum.random())
+      |> assign(:player, @players |> Enum.random())
+
+    {:reply,
+     {:ok,
+      %{board: socket.assigns.board, turn: socket.assigns.turn, player: socket.assigns.player}},
+     socket}
   end
 
   def handle_in("decline_new_game", _payload, socket) do
@@ -289,11 +288,6 @@ defmodule TicTacToexWeb.RoomChannel do
     })
 
     {:noreply, socket}
-  end
-
-  # Add authorization logic here as required.
-  defp authorized?(_payload) do
-    true
   end
 
   intercept(["played", "sync_game"])

@@ -5,16 +5,12 @@ defmodule TicTacToexWeb.LobbyChannel do
 
   @impl true
   def join("lobby", payload, socket) do
-    if authorized?(payload) do
-      send(self(), :after_join)
+    send(self(), :after_join)
 
-      socket =
-        assign(socket, :token, payload["token"])
+    socket =
+      assign(socket, :token, payload["token"])
 
-      {:ok, socket}
-    else
-      {:error, %{reason: "unauthorized"}}
-    end
+    {:ok, socket}
   end
 
   @impl true
@@ -43,11 +39,6 @@ defmodule TicTacToexWeb.LobbyChannel do
     })
 
     {:reply, {:ok, %{room: name}}, socket}
-  end
-
-  # Add authorization logic here as required.
-  defp authorized?(_payload) do
-    true
   end
 
   @impl true

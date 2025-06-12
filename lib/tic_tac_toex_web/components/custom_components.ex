@@ -17,8 +17,6 @@ defmodule TicTacToexWeb.CustomComponents do
   use Phoenix.Component
   use Gettext, backend: TicTacToexWeb.Gettext
 
-  alias Phoenix.LiveView.JS
-
   @doc """
   Renders a modal.
 

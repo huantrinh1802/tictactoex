@@ -1,6 +1,5 @@
 defmodule TicTacToexWeb.Plugs.AssignGuestUser do
   import Plug.Conn
-  alias Phoenix.Controller
 
   def init(opts), do: opts
 
@@ -29,11 +28,5 @@ defmodule TicTacToexWeb.Plugs.AssignGuestUser do
         |> put_session(:current_user, guest_user)
         |> assign(:current_user, guest_user)
     end
-  end
-
-  defp random_string(len) do
-    :crypto.strong_rand_bytes(len)
-    |> Base.url_encode64(padding: false)
-    |> binary_part(0, len)
   end
 end

@@ -16,8 +16,8 @@ defmodule TicTacToex.Game do
   end
 
   @doc false
-  def changeset(Game, attrs) do
-    Game
+  def changeset(game, attrs) do
+    game
     |> cast(attrs, [:metadata])
     |> validate_required([])
   end

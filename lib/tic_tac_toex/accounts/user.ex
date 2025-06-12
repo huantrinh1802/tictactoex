@@ -40,6 +40,7 @@ defmodule TicTacToex.Accounts.User do
     user
     |> cast(attrs, [:name, :email, :password])
     |> validate_email(opts)
+    |> validate_name(opts)
     |> validate_password(opts)
   end
 
@@ -131,7 +132,7 @@ defmodule TicTacToex.Accounts.User do
 
   It requires the email to change otherwise an error is added.
   """
-  def name_changeset(user, attrs, opts \\ []) do
+  def name_changeset(user, attrs, _opts \\ []) do
     user
     |> cast(attrs, [:name])
     |> case do
