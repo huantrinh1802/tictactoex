@@ -1,0 +1,64 @@
+ARG DEBIAN_VERSION=bookworm-20250407-slim
+ARG OTP_VERSION=27.3.2
+ARG ELIXIR_VERSION=1.18.3
+
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
+
+FROM ${BUILDER_IMAGE} as build
+RUN apt-get update -y && apt-get install -y build-essential git curl sqlite3 libsqlite3-dev\
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+RUN curl -sL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh
+RUN bash nodesource_setup.sh
+RUN apt-get install -y nodejs
+# Setup env
+ENV MIX_ENV=prod \
+    LANG=C.UTF-8 \
+    HOME=/app
+
+WORKDIR /app
+
+# Cache deps
+COPY mix.exs mix.lock ./
+COPY config config
+RUN mix local.hex --force && mix local.rebar --force
+RUN mix deps.get --only prod
+RUN mix deps.compile
+
+COPY assets assets
+COPY priv priv
+COPY lib lib
+RUN mix assets.setup
+RUN mix assets.deploy
+RUN mix compile
+COPY config/runtime.exs config/
+
+RUN mix release
+
+# -------- Release stage --------
+FROM ${RUNNER_IMAGE}
+
+RUN apt-get update -y && \
+  apt-get install -y libsqlite3-0 \
+  openssl \
+  libstdc++6 \
+  libgcc-s1 \
+  libncurses6 \ 
+  locales ca-certificates \
+  && apt-get clean && rm -f /var/lib/apt/lists/*_*
+ENV MIX_ENV=prod \
+    LANG=C.UTF-8 \
+    HOME=/app
+
+WORKDIR /app
+
+COPY --from=build /app/_build/prod/rel/tic_tac_toex ./
+COPY --from=build /app/priv/static /app/priv/static
+
+ENV DATABASE_PATH=/app/priv/db/tic_tac_toex.db
+ENV PORT=4000
+
+EXPOSE 4000
+
+CMD ["./bin/tic_tac_toex", "start"]

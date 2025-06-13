@@ -39,33 +39,35 @@ defmodule TicTacToexWeb.UserLoginLive do
     <dialog
       id="guest-password-dialog"
       phx-hook="ShowDialog"
-      class="rounded-xl shadow-xl p-6 max-w-md w-full grid gap-2"
+      class="rounded-xl shadow-xl p-6 max-w-md w-full"
     >
-      <h2 class="text-xl font-semibold text-gray-800">Guest Login</h2>
+      <div class="grid gap-2">
+        <h2 class="text-xl font-semibold text-gray-800">Guest Login</h2>
 
-      <p>To log in as a guest, we will generate a temporary password for you.</p>
-      <p>Please note down the password below.</p>
-      <p>Your temporary password is:</p>
+        <p>To log in as a guest, we will generate a temporary password for you.</p>
+        <p>Please note down the password below.</p>
+        <p>Your temporary password is:</p>
 
-      <div class="flex items-center gap-2">
-        <code id="guest-password-code" class="bg-gray-100 text-gray-800 font-mono px-2 py-1 rounded">
-          {if @guest_password, do: @guest_password}
-        </code>
-        <button
-          id="guest-password-copy"
-          class="btn btn-sm"
-          phx-hook="CopyToClipboard"
-          data-copy-target="guest-password-code"
-        >
-          📋
-        </button>
+        <div class="flex items-center gap-2">
+          <code id="guest-password-code" class="bg-gray-100 text-gray-800 font-mono px-2 py-1 rounded">
+            {if @guest_password, do: @guest_password}
+          </code>
+          <button
+            id="guest-password-copy"
+            class="btn btn-sm"
+            phx-hook="CopyToClipboard"
+            data-copy-target="guest-password-code"
+          >
+            📋
+          </button>
+        </div>
+
+        <form method="dialog">
+          <.button phx-click="confirm_guest_redirect" class="w-full mt-2">
+            Continue as Guest
+          </.button>
+        </form>
       </div>
-
-      <form method="dialog">
-        <.button phx-click="confirm_guest_redirect" class="w-full mt-2">
-          Continue as Guest
-        </.button>
-      </form>
     </dialog>
     """
   end

@@ -12,3 +12,5 @@ priv/svelte
 priv/static/assets
 .DS_Store
 assets/node_modules
+.env
+priv/static

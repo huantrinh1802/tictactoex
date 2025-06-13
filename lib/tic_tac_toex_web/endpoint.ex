@@ -29,7 +29,7 @@ defmodule TicTacToexWeb.Endpoint do
     at: "/",
     from: :tic_tac_toex,
     gzip: false,
-    only: TicTacToexWeb.static_paths()
+    only_matching: TicTacToexWeb.static_paths()
   )
 
   # Code reloading can be explicitly enabled under the
