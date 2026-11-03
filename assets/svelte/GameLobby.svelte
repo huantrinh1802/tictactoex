@@ -1,7 +1,7 @@
 <script>
   import { Presence, Socket } from 'phoenix';
   import { translate_room_name, initialise_socket } from '../lib/utils';
-  let { user, live } = $props();
+  let { user, socket_token, live } = $props();
   let rooms = $state({});
   let socket;
   let channel;
@@ -9,7 +9,7 @@
   let new_room = $state({ size: 20, winning: 5 });
   let new_room_modal = $state();
   $effect(() => {
-    socket = initialise_socket(user?.email);
+    socket = initialise_socket(socket_token);
     join();
   });
   $effect(() => {
@@ -21,17 +21,17 @@
     }
   });
   function join() {
-    channel = socket.channel('lobby', { token: user?.email });
+    channel = socket.channel('lobby', {});
     presence = new Presence(channel);
     channel
       .join()
       .receive('ok', (resp) => {
         console.log('Joined successfully', resp);
         channel.on('channel_list', (payload) => {
-          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.find((member) => member == user?.email)));
+          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.includes(user?.id)));
         });
         channel.on('room_changed', (payload) => {
-          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.find((member) => member == user?.email)));
+          rooms = Object.fromEntries(Object.entries(payload.rooms).filter(([room_name, room]) => room.members.length < 2 || room.members.includes(user?.id)));
         });
       })
       .receive('error', (resp) => {
@@ -47,7 +47,7 @@
       .receive('ok', (payload) => {
         live.pushEvent("navigate_to", { to: '/game/' + payload.room });
       })
-      .receive('error', (err) => console.log('phoenix errored', err));
+      .receive('error', (err) => alert(err.reason ?? 'Could not create the room'));
   }
   function join_room(room) {
     channel.leave();
@@ -72,7 +72,7 @@
       <button
         class="w-fit rounded bg-teal-500 px-4 py-2 font-bold text-white hover:bg-teal-700"
         onclick={() => join_room(room)}>
-        {#if data.members.includes(user?.email)}
+        {#if data.members.includes(user?.id)}
           Rejoin
         {:else}
           Join

@@ -31,8 +31,9 @@ defmodule TicTacToex.Scoreboard do
           player_b_id: s0.player_b_id,
           inserted_at: s0.inserted_at,
           updated_at: s0.updated_at,
-          player_a: %{id: s1.id, name: s1.name, email: s1.email},
-          player_b: %{id: s2.id, name: s2.name, email: s2.email},
+          # No emails: these are shown to the other player.
+          player_a: %{id: s1.id, name: s1.name},
+          player_b: %{id: s2.id, name: s2.name},
           games_history:
             type(
               fragment(
@@ -65,8 +66,9 @@ defmodule TicTacToex.Scoreboard do
           player_b_id: s0.player_b_id,
           inserted_at: s0.inserted_at,
           updated_at: s0.updated_at,
-          player_a: %{id: s1.id, name: s1.name, email: s1.email},
-          player_b: %{id: s2.id, name: s2.name, email: s2.email},
+          # No emails: these are shown to the other player.
+          player_a: %{id: s1.id, name: s1.name},
+          player_b: %{id: s2.id, name: s2.name},
           games_history:
             type(
               fragment(

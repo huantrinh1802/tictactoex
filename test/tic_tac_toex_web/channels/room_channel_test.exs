@@ -19,30 +19,23 @@ defmodule TicTacToexWeb.RoomChannelTest do
     room
   end
 
-  defp join_payload(token), do: %{"token" => token, "name" => token}
+  # Channel tests bypass UserSocket.connect/3, so set the assigns it would set.
+  defp user_socket(user_id) do
+    socket(UserSocket, nil, %{user_id: user_id, user_name: "Player #{user_id}"})
+  end
 
   # Joins and subscribes the test process to the room topic (sees broadcasts).
-  defp join_room(room, token) do
-    UserSocket
-    |> socket(nil, %{token: token})
-    |> subscribe_and_join(RoomChannel, "room:" <> room, join_payload(token))
+  defp join_room(room, user_id, payload \\ %{}) do
+    user_id |> user_socket() |> subscribe_and_join(RoomChannel, "room:" <> room, payload)
   end
 
-  # Joins a second player without subscribing again; their pushes still reach the test process.
-  defp join_opponent(room, token) do
-    UserSocket
-    |> socket(nil, %{token: token})
-    |> join(RoomChannel, "room:" <> room, join_payload(token))
+  # Joins without subscribing again; this player's pushes still reach the test process.
+  defp join_opponent(room, user_id) do
+    user_id |> user_socket() |> join(RoomChannel, "room:" <> room, %{})
   end
 
-  defp new_game(socket) do
-    ref = push(socket, "generate_board", %{})
-    assert_reply(ref, :ok, %{board: board, turn: turn})
-    {board, turn}
-  end
-
-  defp play(socket, x, y, player) do
-    ref = push(socket, "play", %{"x" => x, "y" => y, "player" => player})
+  defp play(socket, x, y, extra \\ %{}) do
+    ref = push(socket, "play", Map.merge(%{"x" => x, "y" => y}, extra))
     assert_reply(ref, status, reply)
     {status, reply}
   end
@@ -50,38 +43,78 @@ defmodule TicTacToexWeb.RoomChannelTest do
   defp other("x"), do: "o"
   defp other("o"), do: "x"
 
+  # Alice creates the game and syncs it to Bob, as Game.svelte does. Returns the
+  # sockets keyed by their server-assigned marks, and whose turn it is.
+  defp start_game(size \\ 3, winning \\ 3) do
+    room = register_room(size, winning)
+    {:ok, _, alice} = join_room(room, 1)
+    {:ok, _, bob} = join_opponent(room, 2)
+
+    ref = push(alice, "generate_board", %{})
+    assert_reply(ref, :ok, %{board: board, turn: turn, player: alice_mark})
+
+    push(alice, "sync_game", %{"score_board" => %{}, "winner" => nil, "win_coords" => []})
+    bob_mark = other(alice_mark)
+    assert_push("sync_game", %{"board" => ^board, "turn" => ^turn, "player" => ^bob_mark})
+
+    %{room: room, by_mark: %{alice_mark => alice, bob_mark => bob}, turn: turn, board: board}
+  end
+
+  # Plays `mark`'s move and waits until the opponent's channel has seen it.
+  defp move(%{by_mark: by_mark}, mark, x, y) do
+    result = play(by_mark[mark], x, y)
+
+    case result do
+      {:ok, %{game_over: true}} -> assert_push("game_over", %{"x" => ^x, "y" => ^y})
+      {:ok, _} -> assert_push("played", %{"x" => ^x, "y" => ^y, "player" => ^mark})
+      _ -> :ok
+    end
+
+    result
+  end
+
   describe "join" do
     test "rejects rooms that are not registered" do
-      assert {:error, %{reason: "room not found"}} = join_room("no_such_room", "a@example.com")
+      assert {:error, %{reason: "room not found"}} = join_room("no_such_room", 1)
     end
 
-    test "joins a registered room, records the member and tracks presence" do
+    test "identifies the player from the socket, ignoring the join payload" do
       room = register_room()
-      assert {:ok, _, _socket} = join_room(room, "a@example.com")
 
-      assert [%{members: ["a@example.com"], active_members: ["a@example.com"]}] =
-               ChannelRegistry.get_channels_by_topic(room)
+      assert {:ok, _, _socket} =
+               join_room(room, 1, %{"token" => "victim@example.com", "name" => "Mallory"})
+
+      assert [%{members: [1], active_members: [1]}] = ChannelRegistry.get_channels_by_topic(room)
 
       assert_push("presence_state", presences)
-      assert %{^room => %{metas: [%{token: "a@example.com", name: "a@example.com"}]}} = presences
+      assert %{^room => %{metas: [%{token: 1, name: "Player 1"}]}} = presences
     end
 
-    test "tells the lobby about the room's new members" do
+    test "admits two players and lets them reconnect, but no third player" do
+      room = register_room()
+      {:ok, _, _} = join_room(room, 1)
+      {:ok, _, _} = join_opponent(room, 2)
+
+      assert {:error, %{reason: "room is full"}} = join_opponent(room, 3)
+      assert {:ok, _, _} = join_opponent(room, 2)
+    end
+
+    test "tells the lobby about the room's members by user id" do
       room = register_room()
       TicTacToexWeb.Endpoint.subscribe("lobby")
 
-      {:ok, _, _socket} = join_room(room, "a@example.com")
+      {:ok, _, _socket} = join_room(room, 1)
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: "lobby",
         event: "room_changed",
-        payload: %{rooms: %{^room => %{members: ["a@example.com"], height: 3, width: 3}}}
+        payload: %{rooms: %{^room => %{members: [1], height: 3, width: 3}}}
       }
     end
 
     test "removes the room once its last member leaves" do
       room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
+      {:ok, _, socket} = join_room(room, 1)
 
       Process.unlink(socket.channel_pid)
       monitor = Process.monitor(socket.channel_pid)
@@ -92,10 +125,10 @@ defmodule TicTacToexWeb.RoomChannelTest do
     end
   end
 
-  describe "gameplay" do
+  describe "a single connection" do
     test "generate_board returns an empty board sized from the room metadata" do
       room = register_room(4, 3)
-      {:ok, _, socket} = join_room(room, "a@example.com")
+      {:ok, _, socket} = join_room(room, 1)
 
       ref = push(socket, "generate_board", %{})
       assert_reply(ref, :ok, %{board: board, turn: turn, player: player})
@@ -105,167 +138,137 @@ defmodule TicTacToexWeb.RoomChannelTest do
       assert player in ["x", "o"]
     end
 
-    test "play places a mark, flips the turn and notifies the opponent" do
+    test "cannot move before a board exists" do
       room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, turn} = new_game(socket)
-      next = other(turn)
+      {:ok, _, socket} = join_room(room, 1)
 
-      assert {:ok, %{board: [[^turn, "", ""], ["", "", ""], ["", "", ""]], turn: ^next}} =
-               play(socket, 0, 0, turn)
-
-      assert_broadcast("played", %{"x" => 0, "y" => 0, "player" => ^turn, "turn" => ^next})
+      assert {:error, %{reason: "Invalid move"}} = play(socket, 0, 0, %{"player" => "x"})
+      assert {:error, %{reason: "Invalid move"}} = play(socket, 0, 0, %{"player" => "o"})
     end
 
-    test "rejects moves before a board exists" do
+    test "sync_game without a game of its own broadcasts nothing" do
       room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
+      {:ok, _, socket} = join_room(room, 1)
 
-      assert {:error, %{reason: "Invalid move"}} = play(socket, 0, 0, "x")
-      assert {:error, %{reason: "Invalid move"}} = play(socket, 0, 0, "o")
-    end
-
-    test "rejects moves out of turn" do
-      room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, turn} = new_game(socket)
-
-      assert {:error, %{reason: "Invalid move"}} = play(socket, 0, 0, other(turn))
-      refute_broadcast("played", _)
-    end
-
-    test "rejects moves on an occupied cell, even on the player's own turn" do
-      room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, turn} = new_game(socket)
-
-      next = other(turn)
-
-      assert {:ok, _} = play(socket, 1, 1, turn)
-      assert {:error, %{reason: "Invalid move"}} = play(socket, 1, 1, next)
-
-      # The failed move did not change whose turn it is.
-      assert {:ok, %{board: [_, [^next, ^turn, ""], _]}} = play(socket, 1, 0, next)
-    end
-
-    test "rejects moves outside the board" do
-      room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, turn} = new_game(socket)
-
-      for {x, y} <- [{3, 0}, {0, 3}, {-1, 0}, {0, -1}] do
-        assert {:error, %{reason: "Invalid move"}} = play(socket, x, y, turn)
-      end
-    end
-
-    test "completing a row ends the game with the winner and winning cells" do
-      room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, p1} = new_game(socket)
-      p2 = other(p1)
-
-      for {x, y, player} <- [{0, 0, p1}, {1, 0, p2}, {0, 1, p1}, {1, 1, p2}] do
-        assert {:ok, %{turn: _}} = play(socket, x, y, player)
-      end
-
-      assert {:ok, %{game_over: true, winner: ^p1, win_coords: [[0, 0], [0, 1], [0, 2]]}} =
-               play(socket, 0, 2, p1)
-
-      assert_broadcast("game_over", %{"winner" => ^p1})
-
-      # Nobody can move on a finished board until a new one is generated.
-      assert {:error, _} = play(socket, 2, 2, p2)
-      assert {:error, _} = play(socket, 2, 2, p1)
-      {_board, turn} = new_game(socket)
-      assert {:ok, _} = play(socket, 2, 2, turn)
-    end
-
-    test "the game ends in a draw as soon as nobody can win" do
-      room = register_room()
-      {:ok, _, socket} = join_room(room, "a@example.com")
-      {_board, p1} = new_game(socket)
-      p2 = other(p1)
-
-      moves = [
-        {0, 0, p1},
-        {0, 1, p2},
-        {0, 2, p1},
-        {1, 1, p2},
-        {1, 0, p1},
-        {2, 0, p2},
-        {2, 1, p1}
-      ]
-
-      for {x, y, player} <- moves do
-        assert {:ok, %{turn: _}} = play(socket, x, y, player)
-      end
-
-      # p1 p2 p1 / p1 p2 p2 / p2 p1 __ : the last cell can't complete any line.
-      assert {:ok, %{game_over: true, draw: true}} = play(socket, 1, 2, p2)
-      assert_broadcast("game_over", %{"draw" => true, "winner" => nil})
+      push(socket, "sync_game", %{"board" => [["x", "x", "x"]], "turn" => "x", "player" => "o"})
+      refute_broadcast("sync_game", _)
     end
   end
 
   describe "two players" do
     setup do
-      room = register_room()
-      {:ok, _, alice} = join_room(room, "alice@example.com")
-      {:ok, _, bob} = join_opponent(room, "bob@example.com")
+      start_game()
+    end
 
-      # Alice starts the game and syncs it to Bob, as Game.svelte does.
-      {board, turn} = new_game(alice)
+    test "sync_game sends the server's board, ignoring a forged one", %{by_mark: by_mark} do
+      [mark | _] = Map.keys(by_mark)
 
-      push(alice, "sync_game", %{
-        "board" => board,
-        "turn" => turn,
-        "player" => turn,
-        "score_board" => %{},
-        "winner" => nil,
-        "win_coords" => []
+      push(by_mark[mark], "sync_game", %{
+        "board" => [["x", "x", "x"], ["", "", ""], ["", "", ""]],
+        "turn" => "x",
+        "player" => "x"
       })
 
-      assert_push("sync_game", %{"board" => ^board, "turn" => ^turn})
-
-      %{alice: alice, bob: bob, alice_mark: turn, bob_mark: other(turn)}
+      opponent = other(mark)
+      empty = List.duplicate(List.duplicate("", 3), 3)
+      assert_push("sync_game", %{"board" => ^empty, "player" => ^opponent})
     end
 
-    test "sync_game gives the opponent the other mark", %{alice_mark: a, bob_mark: b} do
-      assert_broadcast("sync_game", %{"player" => ^b})
-      assert a != b
+    test "a move places the mover's mark, flips the turn and notifies the opponent", ctx do
+      %{by_mark: by_mark, turn: turn} = ctx
+      next = other(turn)
+
+      assert {:ok, %{board: [[^turn, "", ""], ["", "", ""], ["", "", ""]], turn: ^next}} =
+               play(by_mark[turn], 0, 0)
+
+      assert_push("played", %{"x" => 0, "y" => 0, "player" => ^turn, "turn" => ^next})
+      assert_broadcast("played", %{"player" => ^turn})
     end
 
-    test "moves alternate between the players' channels", ctx do
-      %{alice: alice, bob: bob, alice_mark: a, bob_mark: b} = ctx
+    test "the client cannot choose which mark it plays", %{by_mark: by_mark, turn: turn} do
+      waiting = other(turn)
 
-      assert {:ok, %{turn: ^b}} = play(alice, 0, 0, a)
-      assert_push("played", %{"player" => ^a, "turn" => ^b})
+      # The waiting player claims to be the player whose turn it is.
+      assert {:error, %{reason: "Invalid move"}} =
+               play(by_mark[waiting], 0, 0, %{"player" => turn})
 
-      # Bob's channel learnt about Alice's move, so it rejects a repeat and accepts his turn.
-      assert {:error, _} = play(bob, 0, 0, b)
-      assert {:ok, %{turn: ^a, board: [[^a, ^b, ""], _, _]}} = play(bob, 0, 1, b)
-
-      # ...and Alice's channel learnt about Bob's.
-      assert {:error, _} = play(alice, 0, 1, a)
+      # The player in turn claims the other mark: their own mark is placed anyway.
+      assert {:ok, %{board: [[^turn, "", ""], _, _]}} =
+               play(by_mark[turn], 0, 0, %{"player" => waiting})
     end
 
-    test "the loser's channel accepts no further moves", ctx do
-      %{alice: alice, bob: bob, alice_mark: a, bob_mark: b} = ctx
-
-      play(alice, 0, 0, a)
-      play(bob, 1, 0, b)
-      play(alice, 0, 1, a)
-      play(bob, 1, 1, b)
-      assert {:ok, %{winner: ^a}} = play(alice, 0, 2, a)
-
-      assert_push("game_over", %{"winner" => ^a})
-      assert {:error, _} = play(bob, 2, 2, b)
+    test "rejects moves out of turn", %{by_mark: by_mark, turn: turn} do
+      assert {:error, %{reason: "Invalid move"}} = play(by_mark[other(turn)], 0, 0)
+      refute_broadcast("played", _)
     end
 
-    test "new game prompts are relayed to the opponent", %{alice: alice, bob: bob} do
-      push(alice, "prompt_new_game", %{})
+    test "rejects moves on an occupied cell", ctx do
+      %{turn: p1} = ctx
+      p2 = other(p1)
+
+      assert {:ok, _} = move(ctx, p1, 1, 1)
+      assert {:error, %{reason: "Invalid move"}} = move(ctx, p2, 1, 1)
+
+      # The failed move did not use up p2's turn.
+      assert {:ok, %{board: [_, [^p2, ^p1, ""], _]}} = move(ctx, p2, 1, 0)
+    end
+
+    test "rejects moves outside the board", %{by_mark: by_mark, turn: turn} do
+      for {x, y} <- [{3, 0}, {0, 3}, {-1, 0}, {0, -1}] do
+        assert {:error, %{reason: "Invalid move"}} = play(by_mark[turn], x, y)
+      end
+
+      assert {:error, _} = play(by_mark[turn], "0", 0)
+    end
+
+    test "completing a row ends the game for both players", ctx do
+      %{by_mark: by_mark, turn: p1} = ctx
+      p2 = other(p1)
+
+      for {mark, x, y} <- [{p1, 0, 0}, {p2, 1, 0}, {p1, 0, 1}, {p2, 1, 1}] do
+        assert {:ok, %{turn: _}} = move(ctx, mark, x, y)
+      end
+
+      assert {:ok, %{game_over: true, winner: ^p1, win_coords: [[0, 0], [0, 1], [0, 2]]}} =
+               move(ctx, p1, 0, 2)
+
+      assert_broadcast("game_over", %{"winner" => ^p1})
+
+      # Nobody can move on a finished board until a new one is generated.
+      assert {:error, _} = play(by_mark[p2], 2, 2)
+      assert {:error, _} = play(by_mark[p1], 2, 2)
+    end
+
+    test "the game ends in a draw as soon as nobody can win", ctx do
+      %{turn: p1} = ctx
+      p2 = other(p1)
+
+      moves = [
+        {p1, 0, 0},
+        {p2, 0, 1},
+        {p1, 0, 2},
+        {p2, 1, 1},
+        {p1, 1, 0},
+        {p2, 2, 0},
+        {p1, 2, 1}
+      ]
+
+      for {mark, x, y} <- moves do
+        assert {:ok, %{turn: _}} = move(ctx, mark, x, y)
+      end
+
+      # p1 p2 p1 / p1 p2 p2 / p2 p1 __ : the last cell can't complete any line.
+      assert {:ok, %{game_over: true, draw: true}} = move(ctx, p2, 1, 2)
+      assert_broadcast("game_over", %{"draw" => true, "winner" => nil})
+    end
+
+    test "new game prompts are relayed to the opponent", %{by_mark: by_mark} do
+      [first, second] = Map.values(by_mark)
+
+      push(first, "prompt_new_game", %{})
       assert_broadcast("prompt_new_game", %{})
 
-      push(bob, "decline_new_game", %{})
+      push(second, "decline_new_game", %{})
       assert_broadcast("new_game_declined", %{})
     end
   end

@@ -6,16 +6,16 @@ defmodule TicTacToexWeb.RoomChannel do
   alias TicTacToex.ChannelRegistry
 
   @impl true
-  def join("room:" <> room_id, payload, socket) do
-    case ChannelRegistry.on_channel_event(
-           room_id,
-           "join",
-           payload["token"]
-         ) do
+  # The player's identity comes from the authenticated socket (see
+  # TicTacToexWeb.UserSocket), never from the join payload.
+  def join("room:" <> room_id, _payload, socket) do
+    %{user_id: user_id, user_name: name} = socket.assigns
+
+    case ChannelRegistry.on_channel_event(room_id, "join", user_id) do
       {:ok, channel} ->
         socket =
-          assign(socket, :token, payload["token"])
-          |> assign(:name, payload["name"])
+          assign(socket, :token, user_id)
+          |> assign(:name, name)
           |> assign(:room, room_id)
           |> assign(:winning, channel.metadata.winning)
           |> assign(:board_size, channel.metadata.height)
@@ -23,6 +23,9 @@ defmodule TicTacToexWeb.RoomChannel do
 
         send(self(), :after_join)
         {:ok, socket}
+
+      {:full, _} ->
+        {:error, %{reason: "room is full"}}
 
       {_, _} ->
         {:error, %{reason: "room not found"}}
@@ -95,9 +98,11 @@ defmodule TicTacToexWeb.RoomChannel do
   end
 
   # A move is valid only for the player whose turn it is, on an empty cell
-  # inside the board. There is no board until "generate_board"/"sync_game".
-  defp valid_move?(%{board: board, turn: turn}, %{"x" => x, "y" => y, "player" => player})
-       when is_list(board) and is_integer(x) and is_integer(y) and x >= 0 and y >= 0 do
+  # inside the board. The mark is the one this connection was assigned by
+  # "generate_board"/"sync_game"; any "player" sent by the client is ignored.
+  defp valid_move?(%{board: board, turn: turn, player: player}, %{"x" => x, "y" => y})
+       when is_list(board) and is_binary(player) and is_integer(x) and is_integer(y) and
+              x >= 0 and y >= 0 do
     row = Enum.at(board, x)
     player == turn and is_list(row) and Enum.at(row, y) == @empty_cell
   end
@@ -197,7 +202,7 @@ defmodule TicTacToexWeb.RoomChannel do
           socket.assigns.board,
           [Access.at(payload["x"]), Access.at(payload["y"])],
           fn _ ->
-            payload["player"]
+            socket.assigns.player
           end
         )
 
@@ -207,7 +212,7 @@ defmodule TicTacToexWeb.RoomChannel do
           :turn,
           @players
           |> Enum.find(fn player ->
-            player != payload["player"]
+            player != socket.assigns.player
           end)
         )
 
@@ -246,7 +251,7 @@ defmodule TicTacToexWeb.RoomChannel do
               "board" => board,
               "x" => payload["x"],
               "y" => payload["y"],
-              "player" => payload["player"],
+              "player" => socket.assigns.player,
               "turn" => socket.assigns.turn
             })
 
@@ -285,19 +290,16 @@ defmodule TicTacToexWeb.RoomChannel do
     {:noreply, socket}
   end
 
-  def handle_in("sync_game", payload, socket) do
-    socket =
-      assign(socket, :board, payload["board"])
-      |> assign(:turn, payload["turn"])
-
+  # Shares this connection's game with the opponent (e.g. after they join or
+  # for a new game). Board, turn and marks come from the server's own state;
+  # only display-only fields (local scores, winner banner) are taken from the
+  # client.
+  def handle_in("sync_game", payload, %{assigns: %{board: board, player: player}} = socket)
+      when is_list(board) and is_binary(player) do
     broadcast_from!(socket, "sync_game", %{
-      "board" => payload["board"],
-      "turn" => payload["turn"],
-      "player" =>
-        @players
-        |> Enum.find(fn player ->
-          player != payload["player"]
-        end),
+      "board" => board,
+      "turn" => socket.assigns.turn,
+      "player" => other_player(player),
       "score_board" => payload["score_board"],
       "winner" => payload["winner"],
       "win_coords" => payload["win_coords"]
@@ -305,6 +307,10 @@ defmodule TicTacToexWeb.RoomChannel do
 
     {:noreply, socket}
   end
+
+  def handle_in("sync_game", _payload, socket), do: {:noreply, socket}
+
+  defp other_player(player), do: Enum.find(@players, &(&1 != player))
 
   intercept(["played", "game_over", "sync_game"])
 
@@ -327,6 +333,7 @@ defmodule TicTacToexWeb.RoomChannel do
     socket =
       assign(socket, :board, payload["board"])
       |> assign(:turn, payload["turn"])
+      |> assign(:player, payload["player"])
 
     push(socket, "sync_game", payload)
     {:noreply, socket}

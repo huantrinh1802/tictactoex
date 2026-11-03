@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { liveViewSockets } from '../stores/liveViewSockets';
   import { translate_room_name, initialise_socket } from '../lib/utils';
-  let { room_name, user, live } = $props();
+  let { room_name, user, socket_token, live } = $props();
   let channel;
   let presence;
   let board = $state([]);
@@ -34,7 +34,7 @@
     }
   });
   onMount(() => {
-    socket = initialise_socket(user.email);
+    socket = initialise_socket(socket_token);
     if (!socket) {
       console.log('No socket');
     } else {
@@ -45,8 +45,9 @@
     }
   });
   function join() {
-    channel = socket.channel(`room:${room_name}`, { token: user?.email, name: user?.name });
-    let token = user?.email;
+    // The server identifies us from the signed socket token; presence metas carry user ids.
+    channel = socket.channel(`room:${room_name}`, {});
+    let token = user?.id;
     presence = new Presence(channel);
     channel
       .join()
@@ -136,7 +137,7 @@
   }
   function play(x, y) {
     channel
-      .push('play', { x: x, y: y, player: player })
+      .push('play', { x: x, y: y })
       .receive('ok', (payload) => {
         board = payload.board;
         turn = payload.turn;

@@ -11,25 +11,29 @@ defmodule TicTacToexWeb.UserSocket do
   channel("room:*", TicTacToexWeb.RoomChannel)
   channel("lobby", TicTacToexWeb.LobbyChannel)
 
-  # Socket params are passed from the client and can
-  # be used to verify and authenticate a user. After
-  # verification, you can put default assigns into
-  # the socket that will be set for all channels, ie
-  #
-  #     {:ok, assign(socket, :user_id, verified_user_id)}
-  #
-  # To deny connection, return `:error` or `{:error, term}`. To control the
-  # response the client receives in that case, [define an error handler in the
-  # websocket
-  # configuration](https://hexdocs.pm/phoenix/Phoenix.Endpoint.html#socket/3-websocket-configuration).
-  #
-  # See `Phoenix.Token` documentation for examples in
-  # performing token verification on connect.
+  @salt "user socket"
+  # Matches the "remember me" cookie lifetime; clients reuse the token on reconnect.
+  @max_age 60 * 60 * 24 * 60
+
+  @doc """
+  Signs a token that lets the given user connect to this socket. LiveViews
+  pass it to the Svelte components, which send it as the `token` param.
+  """
+  def sign_token(user_id), do: Phoenix.Token.sign(TicTacToexWeb.Endpoint, @salt, user_id)
+
+  # Every channel identifies the player by these assigns, so a connection must
+  # carry a token signed by the server for an existing user.
   @impl true
-  def connect(params, socket, _connect_info) do
-    socket = assign(socket, :token, params["token"])
-    {:ok, socket}
+  def connect(%{"token" => token}, socket, _connect_info) when is_binary(token) do
+    with {:ok, user_id} <- Phoenix.Token.verify(socket, @salt, token, max_age: @max_age),
+         %TicTacToex.Accounts.User{} = user <- TicTacToex.Accounts.get_user(user_id) do
+      {:ok, assign(socket, user_id: user.id, user_name: user.name || "Player #{user.id}")}
+    else
+      _ -> :error
+    end
   end
+
+  def connect(_params, _socket, _connect_info), do: :error
 
   # Socket IDs are topics that allow you to identify all sockets for a given user:
   #

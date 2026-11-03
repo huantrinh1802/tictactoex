@@ -22,6 +22,7 @@ defmodule TicTacToexWeb.GamePagesLiveTest do
 
       assert html =~ ~s(data-name="GameLobby")
       assert html =~ user.email
+      assert html =~ "socket_token&quot;:&quot;"
       # The app layout's sidebar inlines the SVG icons from assets/icons.
       assert html =~ "<svg"
     end

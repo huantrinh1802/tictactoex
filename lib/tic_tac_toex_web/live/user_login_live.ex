@@ -79,6 +79,37 @@ defmodule TicTacToexWeb.UserLoginLive do
   end
 
   def handle_event("guest_login", _, socket) do
+    case create_guest() do
+      {:ok, user, password} ->
+        token = TicTacToex.Accounts.generate_user_session_token(user)
+
+        # Store password temporarily to display before redirect
+        socket =
+          socket
+          |> assign(:guest_password, password)
+          |> assign(:guest_token, token)
+
+        {:noreply, push_event(socket, "open_dialog", %{id: "guest-password-dialog"})}
+
+      :error ->
+        {:noreply,
+         put_flash(socket, :error, "Could not create a guest account, please try again.")}
+    end
+  end
+
+  def handle_event("confirm_guest_redirect", _, socket) do
+    {:noreply,
+     push_navigate(socket,
+       to:
+         ~p"/users/guest_session?token=#{Base.url_encode64(socket.assigns.guest_token, padding: false)}"
+     )}
+  end
+
+  # Random guest names can collide with existing (unique) names/emails, so retry.
+  defp create_guest(attempts \\ 5)
+  defp create_guest(0), do: :error
+
+  defp create_guest(attempts) do
     name = UniqueNamesGenerator.generate([:adjectives, :animals])
     formatted_name = name |> String.split("_") |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
     email = "#{name}@guest.tictactoex"
@@ -89,29 +120,13 @@ defmodule TicTacToexWeb.UserLoginLive do
       |> Base.url_encode64(padding: false)
       |> binary_part(0, 16)
 
-    {:ok, user} =
-      TicTacToex.Accounts.create_guest_user(%{
-        name: formatted_name,
-        email: email,
-        password: password
-      })
-
-    token = TicTacToex.Accounts.generate_user_session_token(user)
-
-    # Store password temporarily to display before redirect
-    socket =
-      socket
-      |> assign(:guest_password, password)
-      |> assign(:guest_token, token)
-
-    {:noreply, push_event(socket, "open_dialog", %{id: "guest-password-dialog"})}
-  end
-
-  def handle_event("confirm_guest_redirect", _, socket) do
-    {:noreply,
-     push_navigate(socket,
-       to:
-         ~p"/users/guest_session?token=#{Base.url_encode64(socket.assigns.guest_token, padding: false)}"
-     )}
+    case TicTacToex.Accounts.create_guest_user(%{
+           name: formatted_name,
+           email: email,
+           password: password
+         }) do
+      {:ok, user} -> {:ok, user, password}
+      {:error, _changeset} -> create_guest(attempts - 1)
+    end
   end
 end
