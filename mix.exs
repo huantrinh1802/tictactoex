@@ -76,7 +76,7 @@ defmodule TicTacToex.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "cmd --cd assets npm install"],
-      "assets.build": ["tailwind tic_tac_toex", "esbuild tic_tac_toex"],
+      "assets.build": ["tailwind tic_tac_toex", "cmd --cd assets node build.js"],
       "assets.deploy": [
         "tailwind tic_tac_toex --minify",
         "cmd --cd assets node build.js --deploy",

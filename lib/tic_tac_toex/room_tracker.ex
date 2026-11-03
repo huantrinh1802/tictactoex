@@ -33,7 +33,7 @@ defmodule TicTacToex.ChannelRegistry do
   end
 
   def unregister_channel(topic) do
-    GenServer.call(__MODULE__, {:unregister, topic, self()})
+    GenServer.call(__MODULE__, {:unregister, topic})
   end
 
   def list_all_channels() do
