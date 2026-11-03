@@ -22,7 +22,9 @@ mix assets.deploy         # production asset build (tailwind --minify, node buil
 JS side (run inside `assets/`): `npx eslint .`, `npx prettier --write .` (configs: `eslint.config.js`, `.prettierrc`). There are no npm scripts.
 
 Notes:
-- JS is bundled by `assets/build.js` (esbuild + esbuild-svelte), **not** the Elixir `esbuild` package (its config in `config/config.exs` is commented out). `mix assets.build` runs tailwind + `node build.js`. `build.js` produces both a client bundle (`priv/static/assets`) and an SSR server bundle (`priv/svelte`).
+- JS is bundled by `assets/build.js` (esbuild + esbuild-svelte), **not** the Elixir `esbuild` package (its config in `config/config.exs` is commented out). `mix assets.build` runs tailwind + `node build.js`. `build.js` produces both a client bundle (`priv/static/assets`) and an SSR server bundle (`priv/svelte`), and copies `assets/{icons,images,manifest.json,robots.txt}` into `priv/static`.
+- `priv/static` is entirely gitignored (build output). Don't read files from it at render time: layout SVGs are embedded at compile time from `assets/icons` via `TicTacToexWeb.Layouts.inline_svg/1`.
+- Svelte SSR is disabled (`config :live_svelte, ssr: false`; `NodeJS.Supervisor` isn't started), so `<.svelte>` renders a placeholder `div` with `data-name` and HTML-escaped JSON `data-props`. LiveView tests assert on those.
 - npm dependencies `phoenix`, `phoenix_live_view`, `live_svelte`, `phoenix_html` are `file:../deps/...`, so `mix deps.get` must run before `npm install`.
 - Migrations run automatically on boot via `Ecto.Migrator` in the supervision tree (skipped when `RELEASE_NAME` is set).
 - Production: `Dockerfile_prod` + `docker-compose.prod.yml`; env vars in `.env.template` (`DATABASE_PATH`, `SECRET_KEY_BASE`, `PORT`, `PHX_SERVER`).
@@ -36,16 +38,16 @@ Notes:
 ### Game state lives in channels, not the DB
 - `TicTacToex.ChannelRegistry` (`lib/tic_tac_toex/room_tracker.ex` — filename differs from module name) is a GenServer owning a public ETS table of rooms: `room_name => %{metadata: %{height, width, winning}, members, active_members}`. Rooms are deleted when `active_members` drops to zero.
 - `LobbyChannel` (`"lobby"`): `create_room` generates a random name (`UniqueNamesGenerator`), registers it, and broadcasts `room_changed` with the room list. On join it pushes `channel_list`.
-- `RoomChannel` (`"room:<name>"`): joining fails if the room isn't in the registry. The board/turn are kept in each channel process's socket assigns and synchronized between the two players via broadcasts (`played`, `game_over`, `sync_game`, `prompt_new_game`, `new_game_declined`); `handle_out` intercepts `played`/`sync_game` to update the receiving process's assigns. Win/draw detection (`check_winner?/2`, `draw?/2` over rows, columns, and all diagonals with a configurable win length) is in this module. Joins/leaves re-broadcast `room_changed` to `"lobby"`.
+- `RoomChannel` (`"room:<name>"`): joining fails if the room isn't in the registry. The board/turn are kept in each channel process's socket assigns and synchronized between the two players via broadcasts (`played`, `game_over`, `sync_game`, `prompt_new_game`, `new_game_declined`); `handle_out` intercepts `played`/`sync_game` to update the receiving process's assigns. Win/draw detection (`check_winner?/2`, `draw?/2` over rows, columns, and all diagonals with a configurable win length) is in this module. A `play` is accepted only from the player whose `turn` it is, on an empty in-bounds cell; after a win/draw `turn` is `nil` in both players' channels (`game_over` is intercepted) until `generate_board`/`sync_game`. `draw?/2` is true as soon as no window of `win_length` cells is free of an opponent's mark. Joins/leaves re-broadcast `room_changed` to `"lobby"`.
 - `Game.svelte` is the client counterpart and holds much of the game flow (new-game prompts, local score tracking pushed via `sync_game`).
 
 ### Persistence
-- `TicTacToex.Accounts` is the standard `phx.gen.auth` context, extended with a `name` field and **guest users** (`guest` flag; `GET /users/guest_session?token=...` logs in by session token; registration can convert a guest into a full user).
-- `TicTacToex.Scoreboard` / `TicTacToex.Game` (in `scoreboard.ex` / `games.ex`) are Ecto schemas with SQLite-specific queries (`json_group_array` fragments). Currently only read by `ScoreboardLive`; nothing in the channels writes game results.
+- `TicTacToex.Accounts` is the standard `phx.gen.auth` context, extended with a `name` field and **guest users** (`guest` flag). Guest login: `UserLoginLive` creates the guest, shows the generated password, then navigates to `GET /users/guest_session?token=<base64url session token>`, which logs the guest in and revokes that one-time token (non-guest tokens are rejected). A logged-in guest can still open `/users/register`, which converts the account (`Accounts.convert_guest_user/2`). Registration requires a unique `name`.
+- `TicTacToex.Scoreboard` / `TicTacToex.Game` (in `scoreboard.ex` / `games.ex`) are Ecto schemas with SQLite-specific queries (`json_group_array` fragments, grouped by scoreboard; `games_history` comes back as maps with string keys). Currently only read by `ScoreboardLive`; nothing in the channels writes game results.
 
 ### Routing
 `/lobby`, `/game/:room_name`, `/scoreboard` are in a `live_session` requiring authentication (`UserAuth.ensure_authenticated`). Dev-only `/dev/dashboard` and `/dev/mailbox`.
 
 ## Tests
 
-Test support is in `test/support/` (`ConnCase`, `DataCase`, `ChannelCase`, account fixtures). Channel tests (`test/tic_tac_toex_web/channels/`) share the global `ChannelRegistry` ETS table, so give each test a unique room name and clean up with `ChannelRegistry.unregister_channel/1` in `on_exit`.
+Test support is in `test/support/` (`ConnCase`, `DataCase`, `ChannelCase`, account fixtures). `AccountsFixtures.user_fixture/1` includes a unique `name`. Use `ConnCase`/`DataCase` without `async: true` (SQLite sandbox). Channel tests (`test/tic_tac_toex_web/channels/`) share the global `ChannelRegistry` ETS table, so give each test a unique room name and clean up with `ChannelRegistry.unregister_channel/1` in `on_exit`.

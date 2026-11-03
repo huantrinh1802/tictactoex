@@ -53,6 +53,10 @@ config :tailwind,
     cd: Path.expand("../assets", __DIR__)
   ]
 
+# Server-side rendering of Svelte components needs NodeJS.Supervisor, which is
+# not started in TicTacToex.Application, so render client-side only.
+config :live_svelte, ssr: false
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

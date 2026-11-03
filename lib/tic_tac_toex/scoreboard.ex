@@ -23,6 +23,8 @@ defmodule TicTacToex.Scoreboard do
         join: s1 in assoc(s0, :player_a),
         join: s2 in assoc(s0, :player_b),
         join: s3 in assoc(s0, :games),
+        # One row per scoreboard; json_group_array aggregates its games.
+        group_by: s0.id,
         select: %{
           player_a_id: s0.player_a_id,
           player_b_id: s0.player_b_id,
@@ -55,6 +57,8 @@ defmodule TicTacToex.Scoreboard do
         join: s1 in assoc(s0, :player_a),
         join: s2 in assoc(s0, :player_b),
         join: s3 in assoc(s0, :games),
+        # One row per scoreboard; json_group_array aggregates its games.
+        group_by: s0.id,
         select: %{
           player_a_id: s0.player_a_id,
           player_b_id: s0.player_b_id,

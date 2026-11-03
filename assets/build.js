@@ -2,6 +2,7 @@ const esbuild = require("esbuild")
 const sveltePlugin = require("esbuild-svelte")
 const importGlobPlugin = require("esbuild-plugin-import-glob").default
 const sveltePreprocess = require("svelte-preprocess")
+const fs = require("fs")
 
 const args = process.argv.slice(2)
 const watch = args.includes("--watch")
@@ -53,6 +54,11 @@ let optsServer = {
             compilerOptions: {dev: !deploy, css: "injected", generate: "server"},
         }),
     ],
+}
+
+// priv/static is gitignored, so copy the static files that live in assets/ into it.
+for (const entry of ["icons", "images", "manifest.json", "robots.txt"]) {
+    fs.cpSync(entry, `../priv/static/${entry}`, {recursive: true})
 }
 
 if (watch) {

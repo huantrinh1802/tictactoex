@@ -40,17 +40,17 @@ defmodule TicTacToexWeb.UserRegistrationLiveTest do
     test "creates account and logs the user in", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
-      email = unique_user_email()
-      form = form(lv, "#registration_form", user: valid_user_attributes(email: email))
+      attrs = valid_user_attributes()
+      form = form(lv, "#registration_form", user: attrs)
       render_submit(form)
       conn = follow_trigger_action(form, conn)
 
       assert redirected_to(conn) == ~p"/"
 
-      # Now do a logged in request and assert on the menu
-      conn = get(conn, "/")
+      # Now do a logged in request and assert on the menu ("/" only redirects to the lobby)
+      conn = get(conn, ~p"/users/settings")
       response = html_response(conn, 200)
-      assert response =~ email
+      assert response =~ attrs.name
       assert response =~ "Settings"
       assert response =~ "Log out"
     end

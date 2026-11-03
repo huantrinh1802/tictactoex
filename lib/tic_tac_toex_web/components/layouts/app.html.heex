@@ -17,7 +17,7 @@
           </svg>
         </button>
         <a href="/" class="h-[2rem] w-[2rem]">
-          {Phoenix.HTML.raw(File.read!("priv/static/icons/icons.svg"))}
+          {inline_svg("/icons/icons.svg")}
         </a>
         <p class=" rounded-full px-2 font-medium leading-6">
           TicTacToex
@@ -63,7 +63,7 @@
           class="flex sidebar-item-container items-center space-x-2"
         >
           <span class="sidebar-icon w-6 h-6">
-          {Phoenix.HTML.raw(File.read!("priv/static" <> item.icon))}
+          {inline_svg(item.icon)}
           </span>
           <span class="sidebar-label hidden">{item.label}</span>
         </a>

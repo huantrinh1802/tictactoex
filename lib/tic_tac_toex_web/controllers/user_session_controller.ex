@@ -40,17 +40,24 @@ defmodule TicTacToexWeb.UserSessionController do
     |> UserAuth.log_out_user()
   end
 
-  def guest_session(conn, %{"token" => token}) do
-    case Accounts.get_user_by_session_token(URI.decode(token)) do
-      nil ->
+  # One-time hand-off from UserLoginLive's guest flow: the token in the URL is
+  # exchanged for a fresh session and then revoked.
+  def guest_session(conn, %{"token" => encoded_token}) do
+    with {:ok, token} <- Base.url_decode64(encoded_token, padding: false),
+         %Accounts.User{guest: true} = user <- Accounts.get_user_by_session_token(token) do
+      Accounts.delete_user_session_token(token)
+      UserAuth.log_in_user(conn, user)
+    else
+      _ ->
         conn
         |> put_flash(:error, "Invalid session token")
         |> redirect(to: ~p"/users/log_in")
-
-      user ->
-        conn
-        |> TicTacToexWeb.UserAuth.log_in_user(user)
-        |> redirect(to: ~p"/")
     end
+  end
+
+  def guest_session(conn, _params) do
+    conn
+    |> put_flash(:error, "Invalid session token")
+    |> redirect(to: ~p"/users/log_in")
   end
 end

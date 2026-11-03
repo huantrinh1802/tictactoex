@@ -8,8 +8,6 @@ defmodule TicTacToexWeb.GameLobbyLive do
   end
 
   def mount(_params, session, socket) do
-    IO.inspect(socket.assigns.current_user)
-
     socket =
       assign(
         socket,

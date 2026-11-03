@@ -83,10 +83,11 @@ defmodule TicTacToexWeb.UserLoginLive do
     formatted_name = name |> String.split("_") |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
     email = "#{name}@guest.tictactoex"
 
+    # Must satisfy the 12-character minimum enforced by User.registration_changeset/3.
     password =
-      :crypto.strong_rand_bytes(8)
+      :crypto.strong_rand_bytes(12)
       |> Base.url_encode64(padding: false)
-      |> binary_part(0, 8)
+      |> binary_part(0, 16)
 
     {:ok, user} =
       TicTacToex.Accounts.create_guest_user(%{
@@ -109,7 +110,8 @@ defmodule TicTacToexWeb.UserLoginLive do
   def handle_event("confirm_guest_redirect", _, socket) do
     {:noreply,
      push_navigate(socket,
-       to: ~p"/users/guest_session?token=#{URI.encode(socket.assigns.guest_token)}"
+       to:
+         ~p"/users/guest_session?token=#{Base.url_encode64(socket.assigns.guest_token, padding: false)}"
      )}
   end
 end
