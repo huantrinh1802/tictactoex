@@ -364,16 +364,12 @@ defmodule TicTacToex.Accounts do
     end
   end
 
+  @doc """
+  Creates a guest user. A random password is generated unless one is given in `attrs`.
+  """
   def create_guest_user(attrs \\ %{}) do
-    # Set a fake password (or nil if you're using nullable hash field for guest users)
-    password = random_string(12)
-
     %User{}
-    |> User.registration_changeset(
-      Map.merge(attrs, %{
-        password: password
-      })
-    )
+    |> User.registration_changeset(Map.merge(%{password: random_string(16)}, attrs))
     |> Ecto.Changeset.put_change(:guest, true)
     |> Repo.insert()
   end

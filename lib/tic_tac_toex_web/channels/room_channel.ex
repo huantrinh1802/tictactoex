@@ -86,13 +86,23 @@ defmodule TicTacToexWeb.RoomChannel do
     end)
   end
 
+  # A window of `win_length` cells can still be won by `player` as long as the
+  # opponent has no mark in it (empty windows count, too).
   defp line_has_potential_win?(line, player, win_length) do
-    Enum.chunk_every(line, win_length, 1, :discard)
-    |> Enum.any?(fn chunk ->
-      count = Enum.count(chunk, &(&1 == player or &1 == ""))
-      count == win_length and Enum.any?(chunk, &(&1 == player))
-    end)
+    line
+    |> Enum.chunk_every(win_length, 1, :discard)
+    |> Enum.any?(fn chunk -> Enum.all?(chunk, &(&1 in [player, @empty_cell])) end)
   end
+
+  # A move is valid only for the player whose turn it is, on an empty cell
+  # inside the board. There is no board until "generate_board"/"sync_game".
+  defp valid_move?(%{board: board, turn: turn}, %{"x" => x, "y" => y, "player" => player})
+       when is_list(board) and is_integer(x) and is_integer(y) and x >= 0 and y >= 0 do
+    row = Enum.at(board, x)
+    player == turn and is_list(row) and Enum.at(row, y) == @empty_cell
+  end
+
+  defp valid_move?(_assigns, _payload), do: false
 
   def draw?(board, win_length \\ 3) do
     Enum.all?(List.flatten(board), &(&1 in @players)) or
@@ -179,9 +189,9 @@ defmodule TicTacToexWeb.RoomChannel do
     diagonals1 ++ diagonals2
   end
 
+  @impl true
   def handle_in("play", payload, socket) do
-    if get_in(socket.assigns, [:board, Access.at(payload["x"]), Access.at(payload["y"])]) == "" or
-         socket.assigns.turn == payload["player"] do
+    if valid_move?(socket.assigns, payload) do
       board =
         update_in(
           socket.assigns.board,
@@ -217,7 +227,7 @@ defmodule TicTacToexWeb.RoomChannel do
 
           {:reply,
            {:ok, %{board: board, game_over: true, winner: winner, win_coords: win_coords}},
-           socket}
+           assign(socket, :turn, nil)}
 
         nil ->
           if draw?(board, socket.assigns.winning) do
@@ -229,7 +239,8 @@ defmodule TicTacToexWeb.RoomChannel do
               "draw" => true
             })
 
-            {:reply, {:ok, %{board: board, game_over: true, draw: true}}, socket}
+            {:reply, {:ok, %{board: board, game_over: true, draw: true}},
+             assign(socket, :turn, nil)}
           else
             broadcast_from!(socket, "played", %{
               "board" => board,
@@ -295,12 +306,20 @@ defmodule TicTacToexWeb.RoomChannel do
     {:noreply, socket}
   end
 
-  intercept(["played", "sync_game"])
+  intercept(["played", "game_over", "sync_game"])
 
   @impl true
   def handle_out("played", payload, socket) do
     socket = assign(socket, :board, payload["board"]) |> assign(:turn, payload["turn"])
     push(socket, "played", payload)
+    {:noreply, socket}
+  end
+
+  # Once a game is over it is nobody's turn, so further moves are rejected
+  # until a new board is generated or synced.
+  def handle_out("game_over", payload, socket) do
+    socket = assign(socket, :board, payload["board"]) |> assign(:turn, nil)
+    push(socket, "game_over", payload)
     {:noreply, socket}
   end
 
