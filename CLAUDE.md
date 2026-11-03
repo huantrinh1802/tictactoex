@@ -22,7 +22,7 @@ mix assets.deploy         # production asset build (tailwind --minify, node buil
 JS side (run inside `assets/`): `npx eslint .`, `npx prettier --write .` (configs: `eslint.config.js`, `.prettierrc`). There are no npm scripts.
 
 Notes:
-- JS is bundled by `assets/build.js` (esbuild + esbuild-svelte), **not** the Elixir `esbuild` package — the `:esbuild` config in `config/config.exs` is commented out, so the `mix assets.build` alias's `esbuild tic_tac_toex` step won't work. Use `cd assets && node build.js` instead. `build.js` produces both a client bundle (`priv/static/assets`) and an SSR server bundle (`priv/svelte`).
+- JS is bundled by `assets/build.js` (esbuild + esbuild-svelte), **not** the Elixir `esbuild` package (its config in `config/config.exs` is commented out). `mix assets.build` runs tailwind + `node build.js`. `build.js` produces both a client bundle (`priv/static/assets`) and an SSR server bundle (`priv/svelte`).
 - npm dependencies `phoenix`, `phoenix_live_view`, `live_svelte`, `phoenix_html` are `file:../deps/...`, so `mix deps.get` must run before `npm install`.
 - Migrations run automatically on boot via `Ecto.Migrator` in the supervision tree (skipped when `RELEASE_NAME` is set).
 - Production: `Dockerfile_prod` + `docker-compose.prod.yml`; env vars in `.env.template` (`DATABASE_PATH`, `SECRET_KEY_BASE`, `PORT`, `PHX_SERVER`).
@@ -48,4 +48,4 @@ Notes:
 
 ## Tests
 
-Test support is in `test/support/` (`ConnCase`, `DataCase`, `ChannelCase`, account fixtures). Tests under `test/do_quickie_web/` are leftover scaffolding from a previous project name — e.g. `room_channel_test.exs` tests `ping`/`shout` events that `RoomChannel` doesn't implement and joins `room:lobby` without registering it, so expect those to fail. The auth tests under `test/tic_tac_toex*/` reflect the real app.
+Test support is in `test/support/` (`ConnCase`, `DataCase`, `ChannelCase`, account fixtures). Channel tests (`test/tic_tac_toex_web/channels/`) share the global `ChannelRegistry` ETS table, so give each test a unique room name and clean up with `ChannelRegistry.unregister_channel/1` in `on_exit`.

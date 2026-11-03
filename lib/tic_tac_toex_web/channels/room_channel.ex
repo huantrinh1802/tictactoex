@@ -30,27 +30,32 @@ defmodule TicTacToexWeb.RoomChannel do
   end
 
   @impl true
-  def terminate(_reason, socket) do
-    case ChannelRegistry.on_channel_event(
-           socket.assigns.room,
-           "leave",
-           socket.assigns.token
-         ) do
-      {:ok, _channel} ->
-        TicTacToexWeb.Endpoint.broadcast("lobby", "room_changed", %{
-          rooms:
-            ChannelRegistry.list_all_channels()
-            |> Enum.map(fn {topic, channels} ->
-              {topic,
-               %{
-                 members: channels.members,
-                 height: channels.metadata.height,
-                 width: channels.metadata.width
-               }}
-            end)
-            |> Map.new()
-        })
+  def terminate(_reason, %{assigns: %{room: room, token: token}}) do
+    # The room may already be gone (e.g. the last member left), so only
+    # notify the lobby when the registry still knew about it.
+    case ChannelRegistry.on_channel_event(room, "leave", token) do
+      {:ok, _channel} -> broadcast_room_list()
+      _ -> :ok
     end
+  end
+
+  # A rejected join never assigns :room, so there is nothing to clean up.
+  def terminate(_reason, _socket), do: :ok
+
+  defp broadcast_room_list do
+    TicTacToexWeb.Endpoint.broadcast("lobby", "room_changed", %{
+      rooms:
+        ChannelRegistry.list_all_channels()
+        |> Enum.map(fn {topic, channels} ->
+          {topic,
+           %{
+             members: channels.members,
+             height: channels.metadata.height,
+             width: channels.metadata.width
+           }}
+        end)
+        |> Map.new()
+    })
   end
 
   def new_board(height, width) do
@@ -310,19 +315,7 @@ defmodule TicTacToexWeb.RoomChannel do
 
   @impl true
   def handle_info(:after_join, socket) do
-    TicTacToexWeb.Endpoint.broadcast("lobby", "room_changed", %{
-      rooms:
-        TicTacToex.ChannelRegistry.list_all_channels()
-        |> Enum.map(fn {topic, channels} ->
-          {topic,
-           %{
-             members: channels.members,
-             height: channels.metadata.height,
-             width: channels.metadata.width
-           }}
-        end)
-        |> Map.new()
-    })
+    broadcast_room_list()
 
     Presence.track(socket, socket.assigns.room, %{
       online_at: inspect(System.system_time(:second)),
