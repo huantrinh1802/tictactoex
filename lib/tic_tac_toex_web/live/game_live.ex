@@ -3,31 +3,22 @@ defmodule TicTacToexWeb.GameLive do
 
   def render(assigns) do
     ~H"""
-    <.svelte name="Game" props={%{room_name: @room_name, user: @current_user}} />
+    <.svelte
+      name="Game"
+      props={%{room_name: @room_name, user: @current_user, socket_token: @socket_token}}
+    />
     """
   end
 
-  def mount(%{"room_name" => room_name}, session, socket) do
-    socket =
-      assign(
-        socket,
-        :current_user,
-        (fn ->
-           cond do
-             socket.assigns.current_user ->
-               socket.assigns.current_user |> Map.take([:id, :name, :email, :guest])
+  # The live_session's :ensure_authenticated on_mount guarantees a current user.
+  def mount(%{"room_name" => room_name}, _session, socket) do
+    user = socket.assigns.current_user
 
-             session["current_user"] ->
-               session["current_user"]
-           end
-         end).()
-      )
-
-    socket =
-      socket
-      |> assign(:room_name, room_name)
-
-    {:ok, socket}
+    {:ok,
+     socket
+     |> assign(:current_user, Map.take(user, [:id, :name, :email, :guest]))
+     |> assign(:socket_token, TicTacToexWeb.UserSocket.sign_token(user.id))
+     |> assign(:room_name, room_name)}
   end
 
   def handle_event("navigate_to", %{"to" => path}, socket) do

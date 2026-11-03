@@ -34,8 +34,8 @@ defmodule TicTacToex.ScoreboardTest do
       scoreboard_fixture(alice, bob, [alice.id, bob.id, nil])
 
       assert [row] = Scoreboard.get_scoreboard_by_user_id!(bob.id)
-      assert row.player_a == %{id: alice.id, name: alice.name, email: alice.email}
-      assert row.player_b == %{id: bob.id, name: bob.name, email: bob.email}
+      assert row.player_a == %{id: alice.id, name: alice.name}
+      assert row.player_b == %{id: bob.id, name: bob.name}
 
       assert row.games_history |> Enum.map(& &1["winner"]) |> Enum.frequencies() ==
                %{alice.id => 1, bob.id => 1, nil => 1}

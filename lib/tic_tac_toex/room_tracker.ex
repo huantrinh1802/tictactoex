@@ -3,6 +3,8 @@ defmodule TicTacToex.ChannelRegistry do
   require Logger
 
   @table_name :channel_registry_table
+  # A room belongs to the first two players who join it.
+  @max_members 2
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -61,14 +63,13 @@ defmodule TicTacToex.ChannelRegistry do
       active_members: []
     }
 
-    # Insert into ETS
-    result = :ets.insert(@table_name, {key, value})
-
-    # Monitor the process
-    # Process.monitor(pid)
-
-    Logger.debug("Registered channel: #{topic}")
-    {:reply, {:ok, result}, state}
+    # Never replace an existing room: that would reset a game in progress.
+    if :ets.insert_new(@table_name, {key, value}) do
+      Logger.debug("Registered channel: #{topic}")
+      {:reply, {:ok, true}, state}
+    else
+      {:reply, {:error, :already_exists}, state}
+    end
   end
 
   def handle_call({:on_channel_event, key, event, token}, _from, state) do
@@ -76,19 +77,24 @@ defmodule TicTacToex.ChannelRegistry do
       [{key, old_value}] ->
         case event do
           "join" ->
-            if Enum.find(old_value.members, &(&1 == token)) == nil do
-              old_value =
-                Map.update!(old_value, :active_members, &(&1 ++ [token]))
-                |> Map.update!(:members, &(&1 ++ [token]))
+            cond do
+              token not in old_value.members and length(old_value.members) >= @max_members ->
+                {:reply, {:full, old_value}, state}
 
-              :ets.insert(@table_name, {key, old_value})
-              {:reply, {:ok, old_value}, state}
-            else
-              old_value =
-                Map.update!(old_value, :active_members, &(&1 ++ [token]))
+              token not in old_value.members ->
+                old_value =
+                  Map.update!(old_value, :active_members, &(&1 ++ [token]))
+                  |> Map.update!(:members, &(&1 ++ [token]))
 
-              :ets.insert(@table_name, {key, old_value})
-              {:reply, {:ok, old_value}, state}
+                :ets.insert(@table_name, {key, old_value})
+                {:reply, {:ok, old_value}, state}
+
+              true ->
+                old_value =
+                  Map.update!(old_value, :active_members, &(&1 ++ [token]))
+
+                :ets.insert(@table_name, {key, old_value})
+                {:reply, {:ok, old_value}, state}
             end
 
           "leave" ->

@@ -18,6 +18,27 @@ defmodule TicTacToex.ChannelRegistryTest do
     assert {^topic, _} = List.keyfind(ChannelRegistry.list_all_channels(), topic, 0)
   end
 
+  test "register_channel/2 never replaces an existing room", %{topic: topic} do
+    ChannelRegistry.on_channel_event(topic, "join", "a")
+
+    assert {:error, :already_exists} =
+             ChannelRegistry.register_channel(topic, %{height: 9, width: 9, winning: 5})
+
+    assert [%{metadata: %{height: 3}, members: ["a"]}] =
+             ChannelRegistry.get_channels_by_topic(topic)
+  end
+
+  test "a room admits two members; others are turned away", %{topic: topic} do
+    ChannelRegistry.on_channel_event(topic, "join", "a")
+    ChannelRegistry.on_channel_event(topic, "join", "b")
+
+    assert {:full, %{members: ["a", "b"]}} = ChannelRegistry.on_channel_event(topic, "join", "c")
+
+    # Existing members can still reconnect.
+    assert {:ok, %{active_members: ["a", "b", "b"]}} =
+             ChannelRegistry.on_channel_event(topic, "join", "b")
+  end
+
   test "join adds a member once but tracks every active connection", %{topic: topic} do
     assert {:ok, %{members: ["a"], active_members: ["a"]}} =
              ChannelRegistry.on_channel_event(topic, "join", "a")

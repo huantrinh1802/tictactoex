@@ -14,7 +14,7 @@
 
     <div class="col-span-5 grid w-full grid-cols-subgrid place-items-center items-center bg-teal-500 text-white">
       {#each scoreboards.sort((a, b) => b.total - a.total) as scoreboard}
-        <div class="px-4 text-lg font-bold">{scoreboard.opponent.name ? scoreboard.opponent.name : scoreboard.opponent.email}</div>
+        <div class="px-4 text-lg font-bold">{scoreboard.opponent.name ?? 'Unknown player'}</div>
         <div class="px-4 text-lg font-bold">{scoreboard.wins}</div>
         <div class="px-4 text-lg font-bold">{scoreboard.losses}</div>
         <div class="px-4 text-lg font-bold">{scoreboard.draws}</div>
