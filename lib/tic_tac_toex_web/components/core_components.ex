@@ -685,6 +685,29 @@ defmodule TicTacToexWeb.CoreComponents do
 
   attr(:current_user, :any, required: true)
 
+  def header_user_section(%{current_user: nil} = assigns) do
+    ~H"""
+    <ul class="relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+      <li>
+        <.link
+          href={~p"/users/log_in"}
+          class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+        >
+          Log in
+        </.link>
+      </li>
+      <li>
+        <.link
+          href={~p"/users/register"}
+          class="text-[0.8125rem] leading-6 text-zinc-900 font-semibold hover:text-zinc-700"
+        >
+          Register
+        </.link>
+      </li>
+    </ul>
+    """
+  end
+
   def header_user_section(assigns) do
     ~H"""
     <ul class="relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">

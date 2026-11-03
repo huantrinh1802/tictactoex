@@ -18,7 +18,13 @@ defmodule TicTacToexWeb.Layouts do
   @icons_dir Path.expand("../../../assets/icons", __DIR__)
   @icon_files Path.wildcard(Path.join(@icons_dir, "*.svg"))
   for file <- @icon_files, do: @external_resource(file)
-  @icons Map.new(@icon_files, &{"/icons/" <> Path.basename(&1), File.read!(&1)})
+
+  @icons Map.new(@icon_files, fn file ->
+           # An XML declaration (<?xml ...?>) is invalid inside HTML: browsers
+           # ignore it, but it breaks HTML parsers such as LiveViewTest's.
+           svg = file |> File.read!() |> String.replace(~r/\A\s*<\?xml[^>]*\?>\s*/, "")
+           {"/icons/" <> Path.basename(file), svg}
+         end)
 
   @doc """
   Returns the markup of an SVG in `assets/icons`, e.g. `inline_svg("/icons/lobby.svg")`.
