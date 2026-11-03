@@ -27,6 +27,7 @@ Notes:
 - Svelte SSR is disabled (`config :live_svelte, ssr: false`; `NodeJS.Supervisor` isn't started), so `<.svelte>` renders a placeholder `div` with `data-name` and HTML-escaped JSON `data-props`. LiveView tests assert on those.
 - npm dependencies `phoenix`, `phoenix_live_view`, `live_svelte`, `phoenix_html` are `file:../deps/...`, so `mix deps.get` must run before `npm install`.
 - Migrations run automatically on boot via `Ecto.Migrator` in the supervision tree (skipped when `RELEASE_NAME` is set).
+- CI (`.github/workflows/ci.yml`): `mix test` on PRs and pushes to `main`, then builds `Dockerfile_prod`; on `main` the image is pushed to `ghcr.io/<owner>/<repo>` (`latest` + `sha-…`). Elixir/OTP versions there must match `Dockerfile_prod`.
 - Production: `Dockerfile_prod` + `docker-compose.prod.yml`; env vars in `.env.template` (`DATABASE_PATH`, `SECRET_KEY_BASE`, `PORT`, `PHX_SERVER`).
 
 ## Architecture
