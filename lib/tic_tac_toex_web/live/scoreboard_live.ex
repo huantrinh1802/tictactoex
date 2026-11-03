@@ -18,7 +18,7 @@ defmodule TicTacToexWeb.ScoreboardLive do
       |> Enum.map(fn %{
                        games_history: games_history,
                        player_a_id: player_a_id,
-                       player_b_id: player_b_id,
+                       player_b_id: _player_b_id,
                        inserted_at: inserted_at,
                        updated_at: updated_at,
                        player_a: player_a,

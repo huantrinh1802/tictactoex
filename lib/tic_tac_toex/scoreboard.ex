@@ -14,7 +14,8 @@ defmodule TicTacToex.Scoreboard do
   @doc false
   def changeset(scoreboard, attrs) do
     scoreboard
-    |> validate_required([])
+    |> cast(attrs, [:player_a_id, :player_b_id])
+    |> validate_required([:player_a_id, :player_b_id])
   end
 
   def list_scoreboards() do
